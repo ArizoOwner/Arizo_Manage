@@ -73,8 +73,12 @@ export function Segmented<T extends string | number>({ value, options, onChange,
   );
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-3xl border border-hairline bg-surface-1 p-4 ${className}`}>{children}</div>;
+export function Card({ children, className = '', ...rest }: { children: ReactNode; className?: string } & Omit<React.HTMLAttributes<HTMLDivElement>, 'className' | 'children'>) {
+  return (
+    <div {...rest} className={`rounded-3xl border border-hairline bg-surface-1 p-4 ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 /** Bottom sheet with focus trap, Escape to close, and a backdrop. */

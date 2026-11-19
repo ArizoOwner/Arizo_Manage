@@ -1,6 +1,6 @@
 // Unlocked app frame: routes + floating dock + entry sheet. Locked or first-run states never mount it.
 import { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router';
+import { Outlet, useLocation, useNavigate } from 'react-router';
 import { LiquidDock, type QuickAction } from '../core/motion/LiquidDock';
 import { EntrySheet, type EntryKind } from '../features/transactions/EntrySheet';
 import { useVault } from './stores/vault';
@@ -12,6 +12,7 @@ export function AppShell() {
   const initialized = useVault((s) => s.initialized);
   const [entry, setEntry] = useState<EntryKind | null>(null);
   const { pathname } = useLocation();
+  const nav = useNavigate();
   // Each screen opens at the top (hash routing keeps the window scroll otherwise).
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -22,7 +23,8 @@ export function AppShell() {
 
   const quick = (a: QuickAction) => {
     if (a === 'expense' || a === 'income' || a === 'transfer') setEntry(a);
-    // cheque / invoice / pasteSms belong to Phases 4, 7 and 5; the menu lists them for discovery only.
+    else if (a === 'cheque') nav('/cheques');
+    // invoice / pasteSms belong to Phases 7 and 5; the menu lists them for discovery only.
   };
 
   return (

@@ -5,10 +5,13 @@ import { Screen } from '../../core/ui/ui';
 
 const LIVE = [
   { to: '/accounts', key: 'more.accounts' },
+  { to: '/cheques', key: 'more.cheques' },
+  { to: '/loans', key: 'more.loans' },
+  { to: '/debts', key: 'more.debts' },
   { to: '/trash', key: 'more.trash' },
   { to: '/settings', key: 'more.settings' },
 ] as const;
-const LATER = ['more.cheques', 'more.loans', 'more.sms', 'more.invoices', 'more.backup'] as const;
+const LATER = ['more.sms', 'more.invoices', 'more.backup'] as const;
 
 export function MoreScreen() {
   const { t } = useTranslation();

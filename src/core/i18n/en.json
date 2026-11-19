@@ -53,6 +53,25 @@
     "integrity": "Verify & recalculate ledger", "integrityOk": "Ledger is healthy ({{n}} transactions checked)", "integrityFixed": "{{n}} balances corrected", "demo": "Add sample data", "demoDone": "Sample data added",
     "wipeAll": "Erase all data", "wipeConfirm": "Type ERASE to confirm", "wipeWord": "ERASE", "reauth": "Enter your PIN to continue", "confirm": "Confirm", "data": "Data"
   },
-  "more": { "title": "Tools", "accounts": "Accounts & assets", "trash": "Trash", "settings": "Settings & security", "soon": "Coming soon", "cheques": "Cheques", "loans": "Loans", "sms": "SMS Center", "invoices": "Invoices", "backup": "Backup" },
-  "analytics": { "title": "Analytics", "soon": "Charts and budgets arrive in Phase 6." }
+  "more": { "title": "Tools", "accounts": "Accounts & assets", "trash": "Trash", "settings": "Settings & security", "soon": "Coming soon", "cheques": "Cheques", "loans": "Loans", "debts": "Debts & IOUs", "sms": "SMS Center", "invoices": "Invoices", "backup": "Backup" },
+  "analytics": { "title": "Analytics", "soon": "Charts and budgets arrive in Phase 6." },
+  "cheques": {
+    "title": "Cheques", "issued": "Issued", "received": "Received", "new": "New cheque", "number": "Cheque number", "sayad": "Sayad ID (16 digits)", "invalidSayad": "The Sayad ID must be 16 digits", "duplicate": "A cheque with this Sayad ID already exists", "counterparty": "Counterparty", "invalidCounterparty": "Counterparty name is required", "amount": "Amount", "due": "Due date", "account": "Account", "noAccount": "No account", "reminders": "Reminders", "daysBefore": "{{d}} days before", "onDay": "On the due date", "save": "Save cheque", "empty": "No cheques yet", "exposureIssued": "Owed on issued cheques", "exposureReceived": "Expected from received cheques", "needAccount": "Pick an account to clear this cheque",
+    "status": { "pending": "Pending", "cleared": "Cleared", "bounced": "Bounced", "cancelled": "Cancelled", "transferred": "Transferred" },
+    "action": { "cleared": "Mark cleared", "bounced": "Mark bounced", "cancelled": "Cancel", "transferred": "Transfer", "pending": "Back to pending" }
+  },
+  "loans": {
+    "title": "Loans & installments", "new": "New loan", "name": "Loan title", "lender": "Lender", "principal": "Loan amount", "rate": "Annual interest (%)", "count": "Number of installments", "firstDue": "First installment due", "override": "Installment per the bank's booklet (optional)", "account": "Account that pays the installments", "disburse": "The loan was paid into this account", "preview": "Each installment", "save": "Save loan", "empty": "No loans yet", "pay": "Pay", "undo": "Undo payment", "paid": "Paid", "overdue": "Overdue", "upcoming": "Upcoming", "remaining": "Remaining", "progress": "{{p}} of {{n}} installments", "paidOff": "Paid off", "invalid": "Check the title, amount and number of installments", "needAccount": "Pick an account for this loan to pay installments"
+  },
+  "debts": {
+    "title": "Debts & IOUs", "people": "People", "newPerson": "New person", "name": "Name", "phone": "Phone (optional)", "newDebt": "Record a debt", "lent": "They owe me", "borrowed": "I owe them", "amount": "Amount", "due": "Due date (optional)", "account": "Account", "postOpening": "This money moved out of / into this account now", "note": "Note", "save": "Save", "settle": "Settle", "settleAmount": "Settlement amount", "remaining": "Remaining: {{a}}", "theyOwe": "owes you", "youOwe": "you owe", "even": "Settled up", "settled": "Settled", "empty": "No people yet", "undo": "Undo", "overpay": "The amount is more than what is left"
+  },
+  "obligations": { "cheque": "Cheque", "installment": "Installment", "debt": "Debt", "recurring": "Recurring", "overdue": "Overdue" },
+  "reminders": {
+    "genericTitle": "Finance reminder", "genericBody": "Something is due soon. Open Arizo for details.",
+    "cheque_zero": "Cheque for {{who}} is due today ({{amt}})", "cheque_other": "{{count}} days until the cheque for {{who}} ({{amt}})",
+    "installment_zero": "{{title}} installment is due today ({{amt}})", "installment_other": "{{count}} days until the {{title}} installment ({{amt}})",
+    "debt_zero": "Debt with {{who}} is due today ({{amt}})", "debt_other": "{{count}} days until the debt with {{who}} is due ({{amt}})",
+    "enable": "Obligation reminders", "enableHint": "Cheque, installment and debt reminders on Android. On iPhone they show on the dashboard.", "detailed": "Show names and amounts in notifications", "detailedHint": "Off by default: the lock screen only shows generic text."
+  }
 }

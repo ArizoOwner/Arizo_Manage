@@ -6,6 +6,9 @@ import { AccountDetail, AccountNew, AccountsList, RatesScreen } from '../feature
 import { Ledger, Trash } from '../features/transactions/Ledger';
 import { SettingsScreen } from '../features/settings/Settings';
 import { AnalyticsPlaceholder, MoreScreen } from '../features/settings/MoreScreen';
+import { ChequesScreen } from '../features/obligations/Cheques';
+import { LoansScreen } from '../features/obligations/Loans';
+import { DebtsScreen } from '../features/obligations/Debts';
 
 // Hash routing: required for static zero-server hosting and #/sms-ingest fragment ingestion (Phase 5).
 // The Design Gallery exists in dev and E2E builds only (VITE_E2E is set by the Playwright web server).
@@ -27,6 +30,9 @@ export const router = createHashRouter([
       { path: 'analytics', element: <AnalyticsPlaceholder /> },
       { path: 'more', element: <MoreScreen /> },
       { path: 'settings', element: <SettingsScreen /> },
+      { path: 'cheques', element: <ChequesScreen /> },
+      { path: 'loans', element: <LoansScreen /> },
+      { path: 'debts', element: <DebtsScreen /> },
       { path: '*', element: <Dashboard /> },
     ],
   },

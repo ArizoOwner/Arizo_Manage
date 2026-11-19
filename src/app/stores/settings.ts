@@ -7,21 +7,28 @@ import i18n from '../../core/i18n/i18n';
 
 export type Theme = 'obsidian' | 'alabaster';
 
-export interface SettingsState {
+type Prefs = {
   lang: Lang;
   calendar: CalendarKind;
   irrUnit: IrrUnit;
   theme: Theme;
-  set: (patch: Partial<Pick<SettingsState, 'lang' | 'calendar' | 'irrUnit' | 'theme'>>) => void;
+  /** Local reminders for cheques, installments and debts (Android). */
+  reminders: boolean;
+  /** Opt-in: show names and amounts in notifications (PROMPT.md §1.2: generic by default). */
+  detailedNotifications: boolean;
+};
+
+export interface SettingsState extends Prefs {
+  set: (patch: Partial<Prefs>) => void;
 }
 
 const KEY = 'arizo.settings.v1';
-const DEFAULTS = { lang: 'fa' as Lang, calendar: 'jalali' as CalendarKind, irrUnit: 'toman' as IrrUnit, theme: 'obsidian' as Theme };
+const DEFAULTS: Prefs = { lang: 'fa', calendar: 'jalali', irrUnit: 'toman', theme: 'obsidian', reminders: true, detailedNotifications: false };
 
-function load(): typeof DEFAULTS {
+function load(): Prefs {
   try {
     const raw = typeof localStorage === 'undefined' ? null : localStorage.getItem(KEY);
-    return raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<typeof DEFAULTS>) } : DEFAULTS;
+    return raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Prefs>) } : DEFAULTS;
   } catch {
     return DEFAULTS;
   }
@@ -41,8 +48,8 @@ export const useSettings = create<SettingsState>((set, get) => ({
   ...load(),
   set: (patch) => {
     set(patch);
-    const { lang, calendar, irrUnit, theme } = get();
-    localStorage.setItem(KEY, JSON.stringify({ lang, calendar, irrUnit, theme }));
+    const { lang, calendar, irrUnit, theme, reminders, detailedNotifications } = get();
+    localStorage.setItem(KEY, JSON.stringify({ lang, calendar, irrUnit, theme, reminders, detailedNotifications }));
     applyDocumentSettings({ lang, theme });
   },
 }));

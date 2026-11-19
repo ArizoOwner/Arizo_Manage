@@ -13,8 +13,9 @@ The spec is `PROMPT.md`. It is the source of truth; this file records what is **
 | 1 | Crypto worker, vault, dual DB, Android security/SQLCipher | ✅ done, gate green (153 tests, debug + R8 release APK build) |
 | 2 | Design system, i18n, dual calendar, motion primitives | ✅ done, gate green (199 unit + 10 E2E) |
 | 3 | Vault lock, onboarding, dashboard, accounts, ledger | ✅ done, gate green (232 unit + 16 E2E, R8 release APK) |
-| 4 | Cheques, loans & installments, debts, local reminders | ⏳ next |
-| 5–9 | See PROMPT.md §8 | pending |
+| 4 | Cheques, loans & installments, debts, local reminders | ✅ done, gate green (261 unit + 19 E2E, R8 release APK) |
+| 5 | Bank SMS & notification intelligence engine | ⏳ next |
+| 6–9 | See PROMPT.md §8 | pending |
 
 ## Commands
 | Command | What it does |
@@ -36,7 +37,7 @@ React 19.3 · TypeScript 5.9 (strict, `noUncheckedIndexedAccess`, `exactOptional
 Dev-only: fake-indexeddb 6, sql.js 1.17 (runs the Android SQL in tests).
 Android: Kotlin 2.1.21 · SQLCipher `net.zetetic:sqlcipher-android` 4.10.0 (+ androidx.sqlite 2.2.0) · androidx.biometric 1.1.0 · androidx.webkit.
 Toolchain: Node 24, JDK 21, Android SDK at `%LOCALAPPDATA%\Android\Sdk`.
-Phase 2 added: jalaali-js 1.2, i18next 25 + react-i18next 15, @capacitor/haptics 7. Phase 3 added: @tanstack/react-virtual 3.
+Phase 2 added: jalaali-js 1.2, i18next 25 + react-i18next 15, @capacitor/haptics 7. Phase 3 added: @tanstack/react-virtual 3. Phase 4 added: @capacitor/local-notifications 7.
 Not yet installed (added when first used): exceljs, html-to-image, chart lib, @capacitor/{app,share,filesystem,local-notifications}.
 
 ## Security invariants (never regress)
@@ -59,6 +60,13 @@ Not yet installed (added when first used): exceljs, html-to-image, chart lib, @c
 - Android `plugins/ArizoSqlCipherPlugin.kt`: raw 32-byte key, asserts `PRAGMA cipher_version`, WAL, `secure_delete`, `foreign_keys`; single background thread; errors never echo SQL or values.
 - `src/core/data/`: `banks.json` (39 entries: 29 Iranian banks/institutions + 3 neo-banks + 7 international; all `verified: false`, senders and Android packages empty for the user to confirm), `seedCategories` (stable ids `cat_*`, idempotent).
 - Validators: Luhn, Sheba mod-97, national ID (personal + legal), economic code, Sayad (shape only: no public checksum), mobile. `numToPersianWords` up to quadrillions.
+
+## Obligations (Phase 4)
+- `src/core/obligations/`: `loans` (exact bigint annuity `P·a·(b+a)^n / (b·((b+a)^n−b^n))`, b = 120 000; 0% splits exactly with the remainder on the last rows; optional bank-printed installment override; Jalali/Gregorian monthly due dates clamped; pay/unpay idempotent via `postLinkedTransaction`; `refreshOverdue`; auto `paid_off`), `cheques` (Sayad 16-digit check, duplicate Sayad refused per direction, guarded status machine, clear → one linked tx, bounce/cancel/transfer after clear voids it, exposure KPI), `debts` (people with normalized mobile, lent/borrowed, optional opening posting, partial settlements capped at what is left, undo, per-person net per currency), `upcoming` (unified 14-day feed, overdue first), `reminders` (pure planner: 09:00 local on each lead day, stable 31-bit FNV ids, generic text unless `detailedNotifications`), `scheduler` (Android LocalNotifications; cancels the previous set first), `sync` (refresh overdue + replan; runs after unlock and after every `mutateObligation`; never in a decoy session).
+- Settings: `reminders` (on) and `detailedNotifications` (off, change needs re-auth).
+- Screens: `features/obligations/` Cheques (issued/received tabs, exposure, status actions), Loans (live installment preview, progress ring, pay/undo per installment), Debts (people, net, settle with keypad); routes `/cheques`, `/loans`, `/debts`; dashboard Upcoming strip uses the unified feed with 1-tap pay for installments and recurring.
+- iOS PWA: no scheduled notifications offline, so reminders are the in-app Upcoming strip (stated in Settings).
+- Android merged manifest gains `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK` from the plugin. No `SCHEDULE_EXACT_ALARM`, so reminders may land a few minutes after 09:00.
 
 ## App (Phase 3)
 - `src/app/`: `AppShell` (Onboarding when no vault → LockScreen when locked → routes + LiquidDock + EntrySheet), `router` (hash routes: `/`, `ledger`, `trash`, `accounts`, `accounts/new`, `accounts/:id`, `rates`, `analytics`, `more`, `settings`), `AutoLockManager` (curtain on hide/`arizoNativePause`, lock after the chosen delay hidden or ≥ 1 min idle), `useVaultQuery` (re-queries on `rev`), stores `vault` (open vault, lockout, auto-lock, re-auth window, `mutate()`), `settings`, `privacy`.

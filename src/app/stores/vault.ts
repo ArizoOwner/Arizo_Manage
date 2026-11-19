@@ -98,6 +98,8 @@ export const useVault = create<VaultState>((set, get) => ({
     // Housekeeping on every unlock: due recurring items and the 30-day Trash purge.
     await runDueRecurring(open.db).catch(() => 0);
     await purgeTrash(open.db).catch(() => 0);
+    // Decoy sessions never touch the OS notification schedule (it belongs to the real vault).
+    if (open.kind === 'main') await import('../../core/obligations/sync').then((m) => m.syncObligations(open.db)).catch(() => {});
     set({ open, lockout: s, initialized: true, reauthUntil: Date.now() + 60_000, rev: get().rev + 1 });
   },
 
@@ -126,5 +128,13 @@ export async function mutate<T>(fn: (db: IVaultDatabase) => Promise<T>): Promise
   const v = useVault.getState();
   const out = await fn(v.db());
   v.bump();
+  return out;
+}
+
+/** Like mutate, then re-plans reminders (cheque, installment and debt edits). */
+export async function mutateObligation<T>(fn: (db: IVaultDatabase) => Promise<T>): Promise<T> {
+  const out = await mutate(fn);
+  const open = useVault.getState().open;
+  if (open?.kind === 'main') void import('../../core/obligations/sync').then((m) => m.syncObligations(open.db)).catch(() => {});
   return out;
 }

@@ -118,6 +118,31 @@ export function SettingsScreen() {
         )}
       </Card>
 
+      {!isDecoy && (
+        <Card className="flex flex-col gap-3">
+          <Toggle
+            label={t('reminders.enable')}
+            description={t('reminders.enableHint')}
+            checked={s.reminders}
+            onChange={(on) => {
+              s.set({ reminders: on });
+              if (v.open) void import('../../core/obligations/sync').then((m) => m.syncObligations(v.open!.db));
+            }}
+          />
+          <Toggle
+            label={t('reminders.detailed')}
+            description={t('reminders.detailedHint')}
+            checked={s.detailedNotifications}
+            onChange={(on) =>
+              request(() => {
+                s.set({ detailedNotifications: on });
+                if (v.open) void import('../../core/obligations/sync').then((m) => m.syncObligations(v.open!.db));
+              })
+            }
+          />
+        </Card>
+      )}
+
       <Card className="flex flex-col gap-3">
         <h2 className="text-[15px] font-bold">{t('settings.appearance')}</h2>
         <Segmented label={t('onboarding.language')} value={s.lang} onChange={(lang) => s.set({ lang })} options={[{ value: 'fa', label: 'فارسی' }, { value: 'en', label: 'English' }]} />

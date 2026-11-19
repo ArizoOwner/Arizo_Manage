@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { usePrivacy } from '../../app/stores/privacy';
 import { useSettings } from '../../app/stores/settings';
-import { mutate, useVault } from '../../app/stores/vault';
+import { mutate, mutateObligation, useVault } from '../../app/stores/vault';
+import { payInstallment } from '../../core/obligations/loans';
+import { upcomingObligations } from '../../core/obligations/upcoming';
 import { useVaultQuery } from '../../app/useVaultQuery';
 import { monthRange } from '../../core/calendar/calendar';
 import { bankByCode } from '../../core/data/banks';
@@ -17,7 +19,6 @@ import { PrivacyBlur } from '../../core/motion/PrivacyBlur';
 import { Card, Icon, IconButton, ICONS, Screen } from '../../core/ui/ui';
 import { TxRow } from '../transactions/TxRow';
 
-const DAY = 86_400_000;
 
 export function Dashboard() {
   const { t } = useTranslation();
@@ -28,8 +29,20 @@ export function Dashboard() {
   const setSettings = useSettings((s) => s.set);
   const { hidden, toggle } = usePrivacy();
   const { data } = useVaultQuery(async (db) => {
-    const [accounts, txs, rates, cats, rules] = await Promise.all([db.find('accounts'), db.find('transactions'), db.find('exchange_rates'), db.find('categories'), db.find('recurring_rules')]);
-    return { accounts, txs, rates, cats, rules };
+    const [accounts, txs, rates, cats, rules, cheques, loans, installments, debts, settlements, people] = await Promise.all([
+      db.find('accounts'),
+      db.find('transactions'),
+      db.find('exchange_rates'),
+      db.find('categories'),
+      db.find('recurring_rules'),
+      db.find('cheques'),
+      db.find('loans'),
+      db.find('loan_installments'),
+      db.find('debts_receivables'),
+      db.find('debt_settlements'),
+      db.find('people'),
+    ]);
+    return { accounts, txs, rates, cats, rules, cheques, loans, installments, debts, settlements, people };
   });
 
   const view = useMemo(() => {
@@ -44,7 +57,7 @@ export function Dashboard() {
       cf: cashflowInBase(data.txs, data.rates, m.start, m.end),
       recent: visible.slice(0, 6),
       pending: visible.filter((x) => x.status === 'pending_review').length,
-      upcoming: data.rules.filter((r) => r.is_active && r.deleted_at === null && r.next_run_at <= now + 14 * DAY).sort((a, b) => a.next_run_at - b.next_run_at),
+      upcoming: upcomingObligations(data, now, 14),
       byId: new Map(data.accounts.map((a) => [a.id, a])),
       catById: new Map(data.cats.map((c) => [c.id, c])),
     };
@@ -162,17 +175,27 @@ export function Dashboard() {
         {view && view.upcoming.length === 0 ? (
           <p className="text-[13px] text-ink-2">{t('dash.noUpcoming')}</p>
         ) : (
-          view?.upcoming.map((r) => (
-            <Card key={r.id} className="flex items-center gap-3 p-3">
+          view?.upcoming.map((o) => (
+            <Card key={`${o.kind}:${o.id}`} className={`flex items-center gap-3 p-3 ${o.overdue ? 'border-coral/50' : ''}`} data-testid="obligation-row">
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[15px] font-semibold">{r.title}</span>
-                <span className="text-[12px] text-ink-2">{formatDate(r.next_run_at, cal, lang)}</span>
+                <span className="truncate text-[15px] font-semibold">{o.title}</span>
+                <span className="text-[12px] text-ink-2">
+                  {t(`obligations.${o.kind}`)} · <span className={o.overdue ? 'font-semibold text-coral-text' : ''}>{o.overdue ? t('obligations.overdue') : formatDate(o.due_at, cal, lang)}</span>
+                </span>
               </span>
               <PrivacyBlur>
-                <span className="text-[14px] font-bold tabular">{formatMoney(r.amount_minor, r.currency_code, lang, irrUnit)}</span>
+                <span className={`text-[14px] font-bold tabular ${o.flow > 0 ? 'text-emerald-text' : ''}`}>{formatMoney(o.amount_minor, o.currency_code, lang, irrUnit)}</span>
               </PrivacyBlur>
-              <button type="button" onClick={() => void mutate((db) => payRecurringNow(db, r.id))} className="min-h-11 rounded-xl bg-surface-3 px-3 text-[13px] font-bold text-emerald-text">
-                {t('dash.pay')}
+              <button
+                type="button"
+                onClick={() => {
+                  if (o.kind === 'recurring') void mutate((db) => payRecurringNow(db, o.id));
+                  else if (o.kind === 'installment') void mutateObligation((db) => payInstallment(db, o.id)).catch(() => nav('/loans'));
+                  else nav(o.kind === 'cheque' ? '/cheques' : '/debts');
+                }}
+                className="min-h-11 rounded-xl bg-surface-3 px-3 text-[13px] font-bold text-emerald-text"
+              >
+                {o.kind === 'recurring' || o.kind === 'installment' ? t('dash.pay') : t('dash.seeAll')}
               </button>
             </Card>
           ))

@@ -1,0 +1,39 @@
+/* Arizo design tokens. Values are the PROMPT.md §3.2 spec; Phase 2 builds the full system on top. */
+:root,
+[data-theme='obsidian'] {
+  color-scheme: dark;
+  --arizo-bg-canvas: #06080d;
+  --arizo-surface-1: #0d111a;
+  --arizo-surface-2: #141b29;
+  --arizo-surface-3: #1c2538;
+  --arizo-border-subtle: rgba(255, 255, 255, 0.06);
+  --arizo-border-highlight: rgba(255, 255, 255, 0.14);
+  --arizo-accent-primary: #00d69f;
+  --arizo-accent-primary-glow: rgba(0, 214, 159, 0.14);
+  --arizo-accent-luxury: #e6c47a;
+  --arizo-accent-outflow: #ff5c7a;
+  --arizo-accent-info: #4da6ff;
+  --arizo-accent-warning: #ffb547;
+  --arizo-text-primary: #f4f7fb;
+  --arizo-text-secondary: #8e9bb0;
+  --arizo-text-muted: #56637a;
+}
+
+[data-theme='alabaster'] {
+  color-scheme: light;
+  --arizo-bg-canvas: #f4f6fa;
+  --arizo-surface-1: #ffffff;
+  --arizo-surface-2: #edf1f7;
+  --arizo-surface-3: #e2e8f0;
+  --arizo-border-subtle: rgba(15, 23, 42, 0.07);
+  --arizo-border-highlight: rgba(15, 23, 42, 0.12);
+  --arizo-accent-primary: #009970;
+  --arizo-accent-primary-glow: rgba(0, 153, 112, 0.12);
+  --arizo-accent-luxury: #b8892d;
+  --arizo-accent-outflow: #df3b57;
+  --arizo-accent-info: #1d7be5;
+  --arizo-accent-warning: #d9820b;
+  --arizo-text-primary: #0b1221;
+  --arizo-text-secondary: #526077;
+  --arizo-text-muted: #8a97ac;
+}

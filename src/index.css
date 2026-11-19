@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+@import './core/theme/fonts.css';
+@import './core/theme/tokens.css';
+
+@theme inline {
+  --color-canvas: var(--arizo-bg-canvas);
+  --color-surface-1: var(--arizo-surface-1);
+  --color-surface-2: var(--arizo-surface-2);
+  --color-surface-3: var(--arizo-surface-3);
+  --color-hairline: var(--arizo-border-subtle);
+  --color-specular: var(--arizo-border-highlight);
+  --color-emerald: var(--arizo-accent-primary);
+  --color-emerald-glow: var(--arizo-accent-primary-glow);
+  --color-gold: var(--arizo-accent-luxury);
+  --color-coral: var(--arizo-accent-outflow);
+  --color-azure: var(--arizo-accent-info);
+  --color-amber: var(--arizo-accent-warning);
+  --color-ink: var(--arizo-text-primary);
+  --color-ink-2: var(--arizo-text-secondary);
+  --color-ink-3: var(--arizo-text-muted);
+  --font-fa: 'Vazirmatn', system-ui, sans-serif;
+  --font-en: 'Plus Jakarta Sans', 'Vazirmatn', system-ui, sans-serif;
+}
+
+html {
+  background: var(--arizo-bg-canvas);
+  color: var(--arizo-text-primary);
+  font-family: var(--font-fa);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+html[lang^='en'] {
+  font-family: var(--font-en);
+}
+body {
+  margin: 0;
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+  overflow-x: hidden;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

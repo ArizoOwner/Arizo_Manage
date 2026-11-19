@@ -53,7 +53,7 @@ export default defineConfig({
   build: { target: 'es2022', sourcemap: false },
   worker: { format: 'es' },
   test: {
-    environment: 'jsdom',
+    environment: 'node',
     include: ['tests/**/*.test.ts'],
   },
 });

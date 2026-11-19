@@ -13,4 +13,8 @@ ext {
     androidxJunitVersion = '1.2.1'
     androidxEspressoCoreVersion = '3.6.1'
     cordovaAndroidVersion = '10.1.1'
+    kotlin_version = '2.1.21'
+    sqlcipherVersion = '4.10.0'
+    androidxSqliteVersion = '2.2.0'
+    androidxBiometricVersion = '1.1.0'
 }

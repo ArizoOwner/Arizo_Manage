@@ -6,8 +6,9 @@ The spec is `PROMPT.md`. It is the source of truth; this file records what is **
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Bootstrap, strict CSP, PWA, Capacitor Android, CLAUDE.md | ✅ done, gate green |
-| 1 | Crypto worker, vault, dual DB, Android security/SQLCipher | ⏳ next |
-| 2–9 | See PROMPT.md §8 | pending |
+| 1 | Crypto worker, vault, dual DB, Android security/SQLCipher | ✅ done, gate green (153 tests) |
+| 2 | Design system, i18n, dual calendar, motion primitives | ⏳ next |
+| 3–9 | See PROMPT.md §8 | pending |
 
 ## Commands
 | Command | What it does |

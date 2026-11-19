@@ -11,7 +11,7 @@ describe('index.html CSP (PROMPT.md §1.2)', () => {
   it.each([
     ['default-src', ["'self'"]],
     ['connect-src', ["'self'"]],
-    ['script-src', ["'self'"]],
+    ['script-src', ["'self'", "'wasm-unsafe-eval'"]], // wasm-unsafe-eval: Argon2id WASM only, never JS eval
     ['style-src', ["'self'", "'unsafe-inline'"]],
     ['img-src', ["'self'", 'data:', 'blob:']],
     ['font-src', ["'self'"]],

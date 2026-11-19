@@ -19,3 +19,19 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# --- Arizo ---
+# Capacitor discovers plugins and @PluginMethod handlers by reflection.
+-keep class com.getcapacitor.** { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }
+-keepclassmembers class * { @com.getcapacitor.PluginMethod public *; }
+# SQLCipher calls back into Java from JNI.
+-keep class net.zetetic.database.** { *; }
+# Strip android.util.Log calls from release builds: zero production logs (PROMPT.md §1.5).
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+    public static int w(...);
+    public static int e(...);
+}

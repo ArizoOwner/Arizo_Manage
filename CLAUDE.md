@@ -4,14 +4,16 @@ The spec is `PROMPT.md`. It is the source of truth; this file records what is **
 
 **Project location:** `D:\Projects\Arizo Manage` (moved from `Downloads` on 2026-11-20).
 **Working mode:** the user asked for phases to run back to back without stopping for approval. Still pass each gate and commit each phase.
+**Language:** reply to the user in Persian (فارسی). Code, paths and commands stay in Latin.
 
 ## Phase status
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Bootstrap, strict CSP, PWA, Capacitor Android, CLAUDE.md | ✅ done, gate green |
 | 1 | Crypto worker, vault, dual DB, Android security/SQLCipher | ✅ done, gate green (153 tests, debug + R8 release APK build) |
-| 2 | Design system, i18n, dual calendar, motion primitives | ⏳ next |
-| 3–9 | See PROMPT.md §8 | pending |
+| 2 | Design system, i18n, dual calendar, motion primitives | ✅ done, gate green (199 unit + 10 E2E) |
+| 3 | Vault lock, onboarding, dashboard, accounts, ledger | ⏳ next |
+| 4–9 | See PROMPT.md §8 | pending |
 
 ## Commands
 | Command | What it does |
@@ -20,7 +22,8 @@ The spec is `PROMPT.md`. It is the source of truth; this file records what is **
 | `npm run typecheck` | `tsc -b --noEmit` across app + node configs |
 | `npm run build` | typecheck + production build + service worker into `dist/` |
 | `npm test` | Vitest (`tests/**/*.test.ts`, node env; fake-indexeddb + sql.js for storage) |
-| `npm run e2e` | Playwright against the **production build** at 390×844 (CSP is exercised) |
+| `npm run e2e` | Playwright: builds `--mode e2e` into `dist-e2e/` (gallery route on, CSP on) and serves it on :4173 |
+| `node scripts/check-prod.mjs` | After `npm run build`: fails if the dev-only gallery leaked into `dist/` |
 | `npx cap sync android` | Copy `dist/` into the Android project |
 | `cd android && ./gradlew assembleDebug` | Debug APK (needs `android/local.properties` with `sdk.dir`, git-ignored) |
 | `cd android && ./gradlew assembleRelease` | R8-minified release APK (unsigned until Phase 9 signing docs) |
@@ -31,7 +34,8 @@ React 19.3 · TypeScript 5.9 (strict, `noUncheckedIndexedAccess`, `exactOptional
 Dev-only: fake-indexeddb 6, sql.js 1.17 (runs the Android SQL in tests).
 Android: Kotlin 2.1.21 · SQLCipher `net.zetetic:sqlcipher-android` 4.10.0 (+ androidx.sqlite 2.2.0) · androidx.biometric 1.1.0 · androidx.webkit.
 Toolchain: Node 24, JDK 21, Android SDK at `%LOCALAPPDATA%\Android\Sdk`.
-Not yet installed (added when first used): jalaali-js, i18next, @tanstack/react-virtual, exceljs, html-to-image, chart lib, @capacitor/{haptics,app,share,filesystem,local-notifications}.
+Phase 2 added: jalaali-js 1.2, i18next 25 + react-i18next 15, @capacitor/haptics 7.
+Not yet installed (added when first used): @tanstack/react-virtual, exceljs, html-to-image, chart lib, @capacitor/{app,share,filesystem,local-notifications}.
 
 ## Security invariants (never regress)
 1. **CSP** in `index.html` is the PROMPT.md §1.2 policy plus tightening, plus one documented addition: `script-src 'self' 'wasm-unsafe-eval'` (required to instantiate the Argon2id WASM; it allows WebAssembly compilation only, not JS `eval`). Pinned by `tests/csp.test.ts`. No remote origin, ever.
@@ -54,8 +58,18 @@ Not yet installed (added when first used): jalaali-js, i18next, @tanstack/react-
 - `src/core/data/`: `banks.json` (39 entries: 29 Iranian banks/institutions + 3 neo-banks + 7 international; all `verified: false`, senders and Android packages empty for the user to confirm), `seedCategories` (stable ids `cat_*`, idempotent).
 - Validators: Luhn, Sheba mod-97, national ID (personal + legal), economic code, Sayad (shape only: no public checksum), mobile. `numToPersianWords` up to quadrillions.
 
+## Design system (Phase 2)
+- `src/core/calendar/calendar.ts`: Jalali↔Gregorian (jalaali-js), wall-clock math in a fixed zone (default `Asia/Tehran`) via `Intl`, `monthRange` half-open, `addMonths` clamps, Saturday-first weeks.
+- `src/core/i18n/`: `fa.json`/`en.json` bundled (no HTTP backend), `format.ts` (`moneyParts`/`formatMoney`: Toman view keeps a Rial remainder digit; Persian digits and separators `٬` `٫`).
+- `src/app/stores/`: `settings` (lang, calendar, irrUnit, theme in localStorage; `applyDocumentSettings` sets `lang`/`dir`/`data-theme` before first paint), `privacy` (session-only stealth blur).
+- `src/core/currency/calculator.ts`: keypad engine on exact bigint fractions, × ÷ precedence, rounds once at the end, 15-digit cap.
+- `src/core/motion/`: `motion.ts` (springs incl. odometer 320/28/0.9, haptics no-op on web), `OdometerAmount`, `ParallaxCard` (±7° tilt, sheen, SVG grain, `layoutId`), `LiquidDock` (4 tabs + orb, 450 ms long-press radial menu), `PrivacyBlur` (blur + `aria-hidden`), `CalculatorKeypad` (000 key, live Persian words), `DualDatePicker` (keyboard nav, RTL-aware arrows).
+- `src/core/theme/cardFinishes.ts`: the 6 finishes.
+- `src/features/gallery/DesignGallery.tsx` at `#/gallery`: dev and `--mode e2e` builds only.
+
 ## Design tokens
-`src/core/theme/tokens.css`: `--arizo-*` vars for `[data-theme='obsidian']` (default) and `[data-theme='alabaster']`, values from PROMPT.md §3.2, mapped to Tailwind colours in `src/index.css` `@theme inline`. Use `ms-/me-/ps-/pe-/start-/end-` logical utilities only.
+`src/core/theme/tokens.css`: `--arizo-*` vars for `[data-theme='obsidian']` (default) and `[data-theme='alabaster']`, values from PROMPT.md §3.2, mapped to Tailwind colours in `src/index.css` `@theme inline` (which emits no CSS vars: read `--arizo-*` in inline styles).
+**WCAG AA (pinned by `tests/design-tokens.test.ts`):** spec accents pass in Obsidian but not in Alabaster (2.4–4.3:1). So: coloured text uses `text-{emerald,gold,coral,azure,amber}-text`; buttons use `bg-cta` / `bg-cta-danger` with `text-on-accent`; gold rings/marks use `gold-mark`. In Obsidian these equal the spec accents; in Alabaster they are deeper shades of the same hue. `ink-3` (muted) is for placeholders/disabled only. Use `ms-/me-/ps-/pe-/start-/end-` logical utilities only.
 
 ## Decisions log
 - **Vite 6, Capacitor 7** (spec locks). `base: './'` for Capacitor + any static sub-path.

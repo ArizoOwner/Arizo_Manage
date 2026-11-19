@@ -1,0 +1,24 @@
+{
+  "app": { "name": "Arizo Manage", "tagline": "Your private, offline, encrypted finance vault" },
+  "nav": { "home": "Home", "ledger": "Ledger", "analytics": "Analytics", "more": "Tools", "add": "Quick add" },
+  "quick": { "expense": "Expense", "income": "Income", "transfer": "Transfer", "cheque": "Cheque", "invoice": "Invoice", "pasteSms": "Paste SMS" },
+  "privacy": { "hide": "Hide amounts", "show": "Show amounts" },
+  "unit": { "toman": "Toman", "rial": "Rial" },
+  "keypad": { "clear": "Clear", "backspace": "Delete", "done": "Done", "inWords": "Amount in words", "divByZero": "Cannot divide by zero", "overflow": "Amount is too large" },
+  "calendar": { "jalali": "Shamsi", "gregorian": "Gregorian", "today": "Today", "prevMonth": "Previous month", "nextMonth": "Next month", "pick": "Pick a date" },
+  "theme": { "obsidian": "Obsidian (dark)", "alabaster": "Alabaster (light)" },
+  "lang": { "fa": "فارسی", "en": "English" },
+  "card": {
+    "finish": {
+      "obsidian_carbon": "Obsidian Carbon",
+      "emerald_silk": "Emerald Silk",
+      "champagne_titanium": "Champagne Titanium",
+      "midnight_sapphire": "Midnight Sapphire",
+      "velvet_burgundy": "Velvet Burgundy",
+      "alabaster_pearl": "Alabaster Pearl"
+    },
+    "balance": "Balance"
+  },
+  "gallery": { "title": "Design Gallery", "devOnly": "Development builds only", "odometer": "Odometer", "cards": "Bank cards", "keypad": "Calculator keypad", "datePicker": "Date picker", "tokens": "Colours", "dock": "Floating dock", "bump": "Bump amount" },
+  "update": { "ready": "A new version is ready.", "later": "Later", "reload": "Update" }
+}

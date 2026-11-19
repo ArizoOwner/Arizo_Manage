@@ -18,6 +18,17 @@
   --color-ink: var(--arizo-text-primary);
   --color-ink-2: var(--arizo-text-secondary);
   --color-ink-3: var(--arizo-text-muted);
+  /* AA-safe text shades and button fills (see tokens.css). */
+  --color-emerald-text: var(--arizo-primary-text);
+  --color-gold-text: var(--arizo-luxury-text);
+  --color-coral-text: var(--arizo-outflow-text);
+  --color-azure-text: var(--arizo-info-text);
+  --color-amber-text: var(--arizo-warning-text);
+  --color-cta: var(--arizo-cta-primary);
+  --color-cta-danger: var(--arizo-cta-outflow);
+  --color-gold-mark: var(--arizo-luxury-mark);
+  --color-on-accent: var(--arizo-on-accent);
+  --color-glass: var(--arizo-glass);
   --font-fa: 'Vazirmatn', system-ui, sans-serif;
   --font-en: 'Plus Jakarta Sans', 'Vazirmatn', system-ui, sans-serif;
 }

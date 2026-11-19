@@ -9,3 +9,5 @@ playwright-report/
 *.keystore
 *.jks
 android/app/release/
+!.env.e2e
+dist-e2e/

@@ -1,0 +1,24 @@
+{
+  "app": { "name": "آریزو منیجر", "tagline": "گاوصندوق مالی شخصی، آفلاین و رمزنگاری‌شده" },
+  "nav": { "home": "خانه", "ledger": "دفتر", "analytics": "تحلیل", "more": "ابزارها", "add": "ثبت سریع" },
+  "quick": { "expense": "هزینه", "income": "درآمد", "transfer": "انتقال", "cheque": "چک", "invoice": "فاکتور", "pasteSms": "چسباندن پیامک" },
+  "privacy": { "hide": "پنهان کردن مبالغ", "show": "نمایش مبالغ" },
+  "unit": { "toman": "تومان", "rial": "ریال" },
+  "keypad": { "clear": "پاک کردن", "backspace": "حذف", "done": "تأیید", "inWords": "مبلغ به حروف", "divByZero": "تقسیم بر صفر ممکن نیست", "overflow": "مبلغ بیش از حد بزرگ است" },
+  "calendar": { "jalali": "شمسی", "gregorian": "میلادی", "today": "امروز", "prevMonth": "ماه قبل", "nextMonth": "ماه بعد", "pick": "انتخاب تاریخ" },
+  "theme": { "obsidian": "ابسیدین (تیره)", "alabaster": "آلاباستر (روشن)" },
+  "lang": { "fa": "فارسی", "en": "English" },
+  "card": {
+    "finish": {
+      "obsidian_carbon": "کربن ابسیدین",
+      "emerald_silk": "ابریشم زمردی",
+      "champagne_titanium": "تیتانیوم شامپاینی",
+      "midnight_sapphire": "یاقوت نیمه‌شب",
+      "velvet_burgundy": "مخمل شرابی",
+      "alabaster_pearl": "مروارید آلاباستر"
+    },
+    "balance": "موجودی"
+  },
+  "gallery": { "title": "گالری طراحی", "devOnly": "فقط در نسخهٔ توسعه", "odometer": "شمارندهٔ چرخان", "cards": "کارت‌های بانکی", "keypad": "صفحه‌کلید ماشین‌حساب", "datePicker": "انتخاب‌گر تاریخ", "tokens": "رنگ‌ها", "dock": "داک شناور", "bump": "افزایش مبلغ" },
+  "update": { "ready": "نسخهٔ تازه آماده است.", "later": "بعداً", "reload": "به‌روزرسانی" }
+}

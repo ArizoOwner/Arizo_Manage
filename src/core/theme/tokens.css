@@ -1,4 +1,10 @@
-/* Arizo design tokens. Values are the PROMPT.md §3.2 spec; Phase 2 builds the full system on top. */
+/* Arizo design tokens (PROMPT.md §3.2).
+ * The spec accents are used as-is for fills, rings, glows, chart marks and large figures.
+ * `*-text` variants are for coloured body text: they pass WCAG AA (≥ 4.5:1) on every surface.
+ * In Obsidian the spec accents already pass, so `-text` equals the accent. In Alabaster the spec
+ * accents measure 2.4–4.3:1 on the light surfaces, so darker text shades are derived (same hue).
+ * `--arizo-text-muted` is for placeholders/disabled only (WCAG exempts disabled UI); readable
+ * secondary copy uses `--arizo-text-secondary`. Ratios are pinned in tests/design-tokens.test.ts. */
 :root,
 [data-theme='obsidian'] {
   color-scheme: dark;
@@ -17,6 +23,18 @@
   --arizo-text-primary: #f4f7fb;
   --arizo-text-secondary: #8e9bb0;
   --arizo-text-muted: #56637a;
+  --arizo-primary-text: #00d69f;
+  --arizo-luxury-text: #e6c47a;
+  --arizo-outflow-text: #ff5c7a;
+  --arizo-info-text: #4da6ff;
+  --arizo-warning-text: #ffb547;
+  /* Button fills and the text on them; gold for rings/marks. Equal to the spec accents in this theme. */
+  --arizo-cta-primary: #00d69f;
+  --arizo-cta-outflow: #ff5c7a;
+  --arizo-luxury-mark: #e6c47a;
+  --arizo-on-accent: #06080d;
+  --arizo-glass: rgba(20, 27, 41, 0.72);
+  --arizo-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.8);
 }
 
 [data-theme='alabaster'] {
@@ -36,4 +54,17 @@
   --arizo-text-primary: #0b1221;
   --arizo-text-secondary: #526077;
   --arizo-text-muted: #8a97ac;
+  --arizo-primary-text: #007455;
+  --arizo-luxury-text: #836120;
+  --arizo-outflow-text: #bb3249;
+  --arizo-info-text: #1866be;
+  --arizo-warning-text: #945807;
+  /* Spec emerald/coral give white text only 3.6/4.3:1 and spec gold is 2.9:1 on the canvas,
+     so fills and marks use slightly deeper shades of the same hues. */
+  --arizo-cta-primary: #008561;
+  --arizo-cta-outflow: #d43853;
+  --arizo-luxury-mark: #a67b28;
+  --arizo-on-accent: #ffffff;
+  --arizo-glass: rgba(255, 255, 255, 0.74);
+  --arizo-shadow: 0 18px 40px -20px rgba(15, 23, 42, 0.28);
 }

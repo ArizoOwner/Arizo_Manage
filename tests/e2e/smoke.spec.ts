@@ -9,7 +9,8 @@ test('boots under strict CSP in Persian RTL', async ({ page }) => {
   page.on('request', (r) => { if (!r.url().startsWith('http://localhost:4173')) external.push(r.url()); });
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'آریزو منیجر' })).toBeVisible();
+  // A fresh profile boots into onboarding.
+  await expect(page.getByRole('heading', { name: 'به آریزو خوش آمدید' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   expect(await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('16px Vazirmatn', 'آریزو'); })).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

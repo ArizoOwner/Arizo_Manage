@@ -77,7 +77,7 @@ class ArizoSecurityPlugin : Plugin() {
             dekForDb?.let { Arrays.fill(it, 0) }
             dekForBio?.let { Arrays.fill(it, 0) }
             dekForDb = dek
-            dekForBio = dek.copyOf() // kept only until enableBiometric runs or the vault locks
+            dekForBio = null // only verifyKek(forBiometric) creates the enrolment copy, on demand
             unlocked = true
         }
 
@@ -236,6 +236,32 @@ class ArizoSecurityPlugin : Plugin() {
         } catch (e: Exception) {
             call.reject("unlock failed", "UNLOCK_FAILED")
         } finally {
+            Arrays.fill(kek, 0)
+        }
+    }
+
+    /**
+     * Re-authentication while the vault is already open: checks the PIN KEK without touching the
+     * open database. For biometric enrolment it refreshes the one-shot copy enableBiometric needs.
+     */
+    @PluginMethod
+    fun verifyKek(call: PluginCall) {
+        val kek = call.getString("kekB64")?.let(::unb64) ?: return call.reject("bad args", "BAD_ARGS")
+        val forBio = call.getBoolean("forBiometric") ?: false
+        var dek: ByteArray? = null
+        try {
+            dek = gcmOpen(kek, metaFile("pin.slot").readBytes(), slotAad(metaFile("vault.id").readText()))
+            if (forBio) synchronized(lockObj) {
+                dekForBio?.let { Arrays.fill(it, 0) }
+                dekForBio = dek.copyOf()
+            }
+            call.resolve()
+        } catch (e: AEADBadTagException) {
+            call.reject("bad pin", "BAD_PIN")
+        } catch (e: Exception) {
+            call.reject("verify failed", "VERIFY_FAILED")
+        } finally {
+            dek?.let { Arrays.fill(it, 0) }
             Arrays.fill(kek, 0)
         }
     }

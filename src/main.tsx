@@ -8,6 +8,12 @@ import './index.css';
 // Language, direction and theme apply before first paint so the lock screen is never mis-mirrored.
 applyDocumentSettings(useSettings.getState());
 
+// E2E builds only: cheap Argon2 so the journey test runs in seconds. Production never takes this branch
+// (VITE_E2E is unset there, and scripts/check-prod.mjs fails the build if this marker ships).
+if (import.meta.env.VITE_E2E === '1') {
+  void import('./core/security/vaultService').then(({ vaultService }) => vaultService.useArgonParamsForTesting({ m: 1024, t: 1, p: 1 }));
+}
+
 const root = document.getElementById('root');
 if (!root) throw new Error('#root missing from index.html');
 createRoot(root).render(

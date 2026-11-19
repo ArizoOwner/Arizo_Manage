@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { argon2id } from 'hash-wasm';
 import { fromHex, randomBytes, te, td, timingSafeEqual, toB64, fromB64, toHex, zeroize, concatBytes } from '../src/core/crypto/bytes';
 import { argon2idRaw, hkdfAesKey, importAesKey, importHkdfKey, open, seal, sha256, NONCE_LEN } from '../src/core/crypto/primitives';
-import { createSlot, indexTag, recordAad, rewrapSlot, unlockKeyring, type Keyring } from '../src/core/crypto/keyring';
+import { addPrfSlot, createSlot, indexTag, recordAad, rewrapSlot, unlockKeyring, unlockWithPrf, type Keyring } from '../src/core/crypto/keyring';
 
 // Small params keep the suite fast; production uses ARGON2_DEFAULT (64 MiB, t=3).
 const FAST = { m: 1024, t: 1, p: 1 };
@@ -160,6 +160,44 @@ describe('keyring: main + decoy slots', () => {
   it('all derived keys are non-extractable', async () => {
     const { keys } = await createSlot(te.encode('1'), 'main', 'a', FAST);
     for (const k of [keys.record, keys.blob, keys.index]) expect(k.extractable).toBe(false);
+  });
+});
+
+describe('keyring: WebAuthn PRF (Face ID / Touch ID) slot', () => {
+  it('a PRF secret unlocks the same vault as the PIN; a different secret does not', async () => {
+    const { slot, keys } = await createSlot(te.encode('246810'), 'main', 'v-prf', FAST);
+    const ring: Keyring = { v: 1, slots: [slot] };
+    const secret = randomBytes(32);
+    const prfSlot = await addPrfSlot(ring, te.encode('246810'), secret.slice(), 'cred-1');
+    expect(prfSlot.method).toBe('prf');
+    expect(prfSlot.credentialIdB64).toBe('cred-1');
+    const sealed = await seal(keys.record, te.encode('row'));
+    const viaPrf = await unlockWithPrf(prfSlot, secret.slice());
+    expect(td.decode(await open(viaPrf!.record, sealed))).toBe('row');
+    expect(await unlockWithPrf(prfSlot, randomBytes(32))).toBeNull();
+    expect(await unlockWithPrf(slot, secret.slice())).toBeNull(); // a PIN slot is not a PRF slot
+  });
+
+  it('enrolment needs the right PIN, and PIN unlock skips the PRF slot', async () => {
+    const { slot } = await createSlot(te.encode('111222'), 'main', 'v2', FAST);
+    await expect(addPrfSlot({ v: 1, slots: [slot] }, te.encode('999999'), randomBytes(32), 'c')).rejects.toThrow('BAD_PIN');
+    const prf = await addPrfSlot({ v: 1, slots: [slot] }, te.encode('111222'), randomBytes(32), 'c');
+    const k = await unlockKeyring({ v: 1, slots: [slot, prf] }, te.encode('111222'));
+    expect(k?.vaultId).toBe('v2');
+  });
+
+  it('the PRF slot keeps working after a PIN change (same DEK)', async () => {
+    const { slot, keys } = await createSlot(te.encode('123123'), 'main', 'v3', FAST);
+    const secret = randomBytes(32);
+    const prfSlot = await addPrfSlot({ v: 1, slots: [slot] }, te.encode('123123'), secret.slice(), 'c');
+    await rewrapSlot(slot, te.encode('123123'), te.encode('456456'));
+    const sealed = await seal(keys.record, te.encode('kept'));
+    expect(td.decode(await open((await unlockWithPrf(prfSlot, secret))!.record, sealed))).toBe('kept');
+  });
+
+  it('rejects a short PRF output', async () => {
+    const { slot } = await createSlot(te.encode('1'), 'main', 'v4', FAST);
+    await expect(addPrfSlot({ v: 1, slots: [slot] }, te.encode('1'), new Uint8Array(8), 'c')).rejects.toThrow();
   });
 });
 

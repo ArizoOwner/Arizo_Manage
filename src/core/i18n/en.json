@@ -20,5 +20,39 @@
     "balance": "Balance"
   },
   "gallery": { "title": "Design Gallery", "devOnly": "Development builds only", "odometer": "Odometer", "cards": "Bank cards", "keypad": "Calculator keypad", "datePicker": "Date picker", "tokens": "Colours", "dock": "Floating dock", "bump": "Bump amount" },
-  "update": { "ready": "A new version is ready.", "later": "Later", "reload": "Update" }
+  "update": { "ready": "A new version is ready.", "later": "Later", "reload": "Update" },
+  "lock": { "title": "Vault locked", "enterPin": "Enter your PIN", "wrong": "Wrong PIN", "lockedFor": "Too many attempts. Wait {{s}} seconds", "biometric": "Unlock with biometrics", "unlocking": "Unlocking…", "wiped": "All data was erased after repeated failed attempts.", "backspace": "Delete", "submit": "Unlock", "pinDots": "{{n}} of {{max}} digits entered" },
+  "onboarding": {
+    "welcome": "Welcome to Arizo", "welcomeBody": "Your finance vault lives only on this device. No server, no tracking.", "start": "Get started", "next": "Continue", "back": "Back", "language": "Language", "calendar": "Calendar", "unit": "Amount display",
+    "createPin": "Create a 6 to 8 digit PIN", "confirmPin": "Enter the PIN again", "pinMismatch": "The PINs do not match", "pinTooShort": "Use at least 6 digits", "pinWeak": "That PIN is too easy to guess (like 123456 or 111111)", "creating": "Creating your encrypted vault…",
+    "warnTitle": "Your PIN is the key to your data", "warnBody": "Arizo keeps no copy on any server. If you forget your PIN and have no encrypted backup, your data is gone for good.", "warnAck": "I understand",
+    "biometricTitle": "Faster unlock", "biometricBody": "Use your fingerprint or face instead of typing your PIN.", "enableBiometric": "Turn on", "skip": "Not now", "biometricUnsupported": "This device or browser does not support secure biometric unlock.",
+    "smsTitle": "Automatic bank SMS capture", "smsAndroid": "On Android, Arizo can read bank SMS automatically. The setup guide arrives in the SMS Center (Phase 5).", "smsIos": "On iPhone, a Shortcuts automation sends bank SMS to Arizo. The 30-second guide arrives in the SMS Center (Phase 5).",
+    "firstAccount": "Your first account", "demo": "Fill with sample data (for trying it out)", "finish": "Open Arizo"
+  },
+  "dash": { "netWorth": "Net worth", "income": "Income", "expense": "Expense", "cashflow": "Cash flow this month", "upcoming": "Due in the next 14 days", "noUpcoming": "Nothing due in the next 14 days", "pay": "Pay", "recent": "Recent transactions", "seeAll": "All", "noAccounts": "No accounts yet", "addAccount": "Add account", "pendingReview": "{{n}} waiting for review", "missingRates": "No exchange rate for {{c}}", "lockNow": "Lock", "ratio": "Spending vs income", "accounts": "Accounts" },
+  "accounts": {
+    "title": "Accounts & assets", "new": "New account", "edit": "Edit account", "name": "Account name", "type": "Type", "bank": "Bank", "noBank": "No bank", "card": "Card number", "sheba": "Sheba (IBAN)", "accountNumber": "Account number", "currency": "Currency", "initial": "Opening balance", "finish": "Card finish", "includeNw": "Include in net worth", "notes": "Notes", "save": "Save", "archive": "Archive", "unarchive": "Unarchive",
+    "invalidName": "Name is required", "invalidCard": "Card number is not valid", "invalidSheba": "Sheba number is not valid", "detected": "Bank detected: {{b}}", "currencyLocked": "The currency of an account with transactions cannot change",
+    "reconcile": "Reconcile balance", "reconcileHint": "Enter the real balance (for example, from your bank app)", "copyCard": "Copy card number", "copySheba": "Copy Sheba", "copied": "Copied; clears in 45 seconds", "reveal": "Reveal", "archived": "Archived",
+    "types": { "bank_card": "Bank card", "bank_account": "Bank account", "cash": "Cash", "savings_vault": "Savings", "investment": "Investment", "crypto": "Crypto", "gold": "Gold", "wallet": "Wallet" },
+    "rates": "Exchange rates", "rateFor": "1 {{base}} = how many Rial?", "addRate": "Save rate", "noRates": "No rates yet"
+  },
+  "entry": {
+    "title": "New transaction", "expense": "Expense", "income": "Income", "transfer": "Transfer", "account": "Account", "from": "From", "to": "To", "category": "Category", "merchant": "Payee / merchant", "note": "Note", "date": "Date",
+    "split": "Split across categories", "addSplit": "Add a part", "splitRemaining": "Remaining: {{a}}", "splitMismatch": "Parts must add up to the amount", "fee": "Fee", "toAmount": "Amount received (destination currency)", "tags": "Tags", "tagsHint": "Separate with spaces, like #work",
+    "recurring": "Repeat", "cadence": "Repeats", "autoPost": "Post automatically without review", "save": "Save", "saved": "Saved", "amount": "Amount", "needAccount": "Create an account first",
+    "cadences": { "daily": "Daily", "weekly": "Weekly", "monthly_jalali": "Monthly (Shamsi)", "monthly_gregorian": "Monthly (Gregorian)", "yearly": "Yearly" }
+  },
+  "ledger": { "title": "Ledger", "search": "Search payee, note, tag", "all": "All", "empty": "No transactions found", "trash": "Trash", "trashEmpty": "Trash is empty", "trashNote": "Items are deleted for good after 30 days", "restore": "Restore", "delete": "Delete", "deleted": "Moved to Trash", "undo": "Undo", "select": "Select", "selected": "{{n}} selected", "deleteSelected": "Delete selected", "cancel": "Cancel", "pending": "Waiting for review", "post": "Confirm", "transferTo": "Transfer to {{a}}", "transferFrom": "Transfer from {{a}}", "split": "Split" },
+  "settings": {
+    "title": "Settings", "security": "Security Center", "encryption": "Data encryption", "encryptionOn": "On (AES-256)", "biometric": "Biometric unlock", "storage": "Storage persistence", "storageOk": "Persistent", "storageAsk": "The browser may clear it", "airgap": "Offline only", "airgapOn": "No network requests allowed", "lastBackup": "Last backup", "never": "Never (Phase 8)",
+    "autolock": "Auto-lock", "immediate": "Immediately", "s15": "15 seconds", "m1": "1 minute", "m5": "5 minutes", "changePin": "Change PIN", "oldPin": "Current PIN", "newPin": "New PIN", "pinChanged": "PIN changed",
+    "decoy": "Duress PIN (decoy vault)", "decoyHint": "This PIN opens a plain, believable vault and keeps your real finances hidden.", "decoySet": "Duress PIN set", "decoyRemove": "Remove duress PIN", "decoyAndroid": "Coming to Android in a later version", "decoySame": "The duress PIN must differ from your main PIN",
+    "wipe": "Erase after 15 failed attempts", "wipeWarn": "Warning: with this on, 15 wrong PINs in a row erase all data permanently.", "appearance": "Appearance",
+    "integrity": "Verify & recalculate ledger", "integrityOk": "Ledger is healthy ({{n}} transactions checked)", "integrityFixed": "{{n}} balances corrected", "demo": "Add sample data", "demoDone": "Sample data added",
+    "wipeAll": "Erase all data", "wipeConfirm": "Type ERASE to confirm", "wipeWord": "ERASE", "reauth": "Enter your PIN to continue", "confirm": "Confirm", "data": "Data"
+  },
+  "more": { "title": "Tools", "accounts": "Accounts & assets", "trash": "Trash", "settings": "Settings & security", "soon": "Coming soon", "cheques": "Cheques", "loans": "Loans", "sms": "SMS Center", "invoices": "Invoices", "backup": "Backup" },
+  "analytics": { "title": "Analytics", "soon": "Charts and budgets arrive in Phase 6." }
 }

@@ -52,6 +52,14 @@ export const cryptoClient = {
     const n = pinBytes(newPin);
     return call<KeySlot>({ op: 'rewrap', slot, oldPin: o, newPin: n }, [o.buffer, n.buffer]);
   },
+  /** Face ID / Touch ID enrolment: the PIN proves ownership, the PRF output becomes a second KEK. */
+  addPrf(ring: Keyring, pin: string, prf: Uint8Array<ArrayBuffer>, credentialIdB64: string) {
+    const p = pinBytes(pin);
+    return call<KeySlot>({ op: 'addPrf', ring, pin: p, prf, credentialIdB64 }, [p.buffer, prf.buffer]);
+  },
+  unlockPrf(slot: KeySlot, prf: Uint8Array<ArrayBuffer>) {
+    return call<VaultKeys | null>({ op: 'unlockPrf', slot, prf }, [prf.buffer]);
+  },
   /** Android PIN path: derive the KEK off-thread; native unwraps the DEK in native memory. */
   argon2(password: string, salt: Uint8Array, params: Argon2Params) {
     const p = pinBytes(password);

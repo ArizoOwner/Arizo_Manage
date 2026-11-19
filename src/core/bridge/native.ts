@@ -15,6 +15,7 @@ export interface ArizoSecurityPlugin {
   status(): Promise<SecurityStatus>;
   createVault(o: { kekB64: string; vaultId: string }): Promise<{ vaultId: string }>;
   unlockWithKek(o: { kekB64: string }): Promise<{ vaultId: string }>;
+  verifyKek(o: { kekB64: string; forBiometric?: boolean }): Promise<void>;
   enableBiometric(): Promise<void>;
   unlockWithBiometric(): Promise<{ vaultId: string }>;
   rewrapPin(o: { oldKekB64: string; newKekB64: string }): Promise<void>;

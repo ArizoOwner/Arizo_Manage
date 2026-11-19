@@ -12,8 +12,9 @@ The spec is `PROMPT.md`. It is the source of truth; this file records what is **
 | 0 | Bootstrap, strict CSP, PWA, Capacitor Android, CLAUDE.md | ✅ done, gate green |
 | 1 | Crypto worker, vault, dual DB, Android security/SQLCipher | ✅ done, gate green (153 tests, debug + R8 release APK build) |
 | 2 | Design system, i18n, dual calendar, motion primitives | ✅ done, gate green (199 unit + 10 E2E) |
-| 3 | Vault lock, onboarding, dashboard, accounts, ledger | ⏳ next |
-| 4–9 | See PROMPT.md §8 | pending |
+| 3 | Vault lock, onboarding, dashboard, accounts, ledger | ✅ done, gate green (232 unit + 16 E2E, R8 release APK) |
+| 4 | Cheques, loans & installments, debts, local reminders | ⏳ next |
+| 5–9 | See PROMPT.md §8 | pending |
 
 ## Commands
 | Command | What it does |
@@ -23,7 +24,8 @@ The spec is `PROMPT.md`. It is the source of truth; this file records what is **
 | `npm run build` | typecheck + production build + service worker into `dist/` |
 | `npm test` | Vitest (`tests/**/*.test.ts`, node env; fake-indexeddb + sql.js for storage) |
 | `npm run e2e` | Playwright: builds `--mode e2e` into `dist-e2e/` (gallery route on, CSP on) and serves it on :4173 |
-| `node scripts/check-prod.mjs` | After `npm run build`: fails if the dev-only gallery leaked into `dist/` |
+| `node scripts/check-prod.mjs` | After `npm run build`: fails if the dev-only gallery or the cheap-Argon2 test hook leaked into `dist/` |
+| `SHOOT=1 npx playwright test tests/e2e/screens-shoot.spec.ts` | Manual visual review: screenshots of the main screens into `test-results/shots/` (skipped in the gate) |
 | `npx cap sync android` | Copy `dist/` into the Android project |
 | `cd android && ./gradlew assembleDebug` | Debug APK (needs `android/local.properties` with `sdk.dir`, git-ignored) |
 | `cd android && ./gradlew assembleRelease` | R8-minified release APK (unsigned until Phase 9 signing docs) |
@@ -34,8 +36,8 @@ React 19.3 · TypeScript 5.9 (strict, `noUncheckedIndexedAccess`, `exactOptional
 Dev-only: fake-indexeddb 6, sql.js 1.17 (runs the Android SQL in tests).
 Android: Kotlin 2.1.21 · SQLCipher `net.zetetic:sqlcipher-android` 4.10.0 (+ androidx.sqlite 2.2.0) · androidx.biometric 1.1.0 · androidx.webkit.
 Toolchain: Node 24, JDK 21, Android SDK at `%LOCALAPPDATA%\Android\Sdk`.
-Phase 2 added: jalaali-js 1.2, i18next 25 + react-i18next 15, @capacitor/haptics 7.
-Not yet installed (added when first used): @tanstack/react-virtual, exceljs, html-to-image, chart lib, @capacitor/{app,share,filesystem,local-notifications}.
+Phase 2 added: jalaali-js 1.2, i18next 25 + react-i18next 15, @capacitor/haptics 7. Phase 3 added: @tanstack/react-virtual 3.
+Not yet installed (added when first used): exceljs, html-to-image, chart lib, @capacitor/{app,share,filesystem,local-notifications}.
 
 ## Security invariants (never regress)
 1. **CSP** in `index.html` is the PROMPT.md §1.2 policy plus tightening, plus one documented addition: `script-src 'self' 'wasm-unsafe-eval'` (required to instantiate the Argon2id WASM; it allows WebAssembly compilation only, not JS `eval`). Pinned by `tests/csp.test.ts`. No remote origin, ever.
@@ -57,6 +59,13 @@ Not yet installed (added when first used): @tanstack/react-virtual, exceljs, htm
 - Android `plugins/ArizoSqlCipherPlugin.kt`: raw 32-byte key, asserts `PRAGMA cipher_version`, WAL, `secure_delete`, `foreign_keys`; single background thread; errors never echo SQL or values.
 - `src/core/data/`: `banks.json` (39 entries: 29 Iranian banks/institutions + 3 neo-banks + 7 international; all `verified: false`, senders and Android packages empty for the user to confirm), `seedCategories` (stable ids `cat_*`, idempotent).
 - Validators: Luhn, Sheba mod-97, national ID (personal + legal), economic code, Sayad (shape only: no public checksum), mobile. `numToPersianWords` up to quadrillions.
+
+## App (Phase 3)
+- `src/app/`: `AppShell` (Onboarding when no vault → LockScreen when locked → routes + LiquidDock + EntrySheet), `router` (hash routes: `/`, `ledger`, `trash`, `accounts`, `accounts/new`, `accounts/:id`, `rates`, `analytics`, `more`, `settings`), `AutoLockManager` (curtain on hide/`arizoNativePause`, lock after the chosen delay hidden or ≥ 1 min idle), `useVaultQuery` (re-queries on `rev`), stores `vault` (open vault, lockout, auto-lock, re-auth window, `mutate()`), `settings`, `privacy`.
+- `src/core/ledger/`: `accounts` (Luhn/Sheba validation, initial-balance edits shift the balance, currency locks once used, reconcile = signed adjustment), `recurring` (Jalali/Gregorian cadences, clamped days, idempotent catch-up, pay-now), `networth` (manual rates in ppm, inverse lookup, missing rates listed not guessed, cashflow excludes transfers).
+- `src/core/security/webauthn.ts`, `vaultService` (create, PIN/biometric unlock, verifyPin, decoy, PIN change, wipe), `src/core/utils/demoData.ts` (deterministic Persian sample data; `modest` for decoys).
+- `src/core/ui/ui.tsx`: Button, Field, Toggle, Segmented, Card, Sheet (focus trap, Escape), Screen, IconButton, icons.
+- Features: `vault-lock/` (PinPad with weak-PIN rule, LockScreen, Onboarding), `dashboard/`, `accounts/` (AccountForm with BIN detect, list, detail with hero `layoutId`, reconcile, rates), `transactions/` (EntrySheet: keypad, chips by usage, splits Σ = amount, tags, recurring; virtualized Ledger with day totals, search, filters, bulk delete, 5 s Undo, pending confirm; Trash), `security/ReauthSheet`, `settings/` (Security Center, Tools hub; later-phase modules listed as disabled).
 
 ## Design system (Phase 2)
 - `src/core/calendar/calendar.ts`: Jalali↔Gregorian (jalaali-js), wall-clock math in a fixed zone (default `Asia/Tehran`) via `Intl`, `monthRange` half-open, `addMonths` clamps, Saturday-first weeks.
@@ -80,7 +89,11 @@ Not yet installed (added when first used): @tanstack/react-virtual, exceljs, htm
 - **Android PIN path** derives the KEK in the JS worker (one Argon2 implementation, tested against RFC 9106 via Node's OpenSSL), and native only unwraps.
 - **SQLCipher 4.10.0** (not 4.20) because 4.20 needs Kotlin stdlib 2.2 / androidx.sqlite 2.7, newer than Capacitor 7's toolchain.
 - **androidx.biometric 1.1.0** (latest stable; 1.4 is still RC).
-- **Decoy vault**: implemented for web; Android decoy (second native slot + DB file) is a documented shortcut until the Phase 3 duress UI.
+- **Decoy vault**: web/iOS only (Settings hides it on Android with an honest "later version" note). Android needs a second native key slot + DB file. Inside a decoy session the security controls are hidden.
+- **Web biometrics = WebAuthn PRF only.** The passkey's PRF secret is a real second KEK (`method: 'prf'` slot). Platforms without PRF get PIN-only; a UI-only biometric gate is never offered.
+- **Re-auth** lasts 60 s after any unlock or PIN check; gates card/Sheba reveal and copy, auto-lock changes, decoy setup, wipe toggle and Wipe All Data. On Android `verifyKek` checks the PIN without reopening the DB; the biometric-enrolment DEK copy now exists only on explicit request.
+- **E2E Argon2**: the `--mode e2e` build lowers Argon2 to m=1 MiB/t=1 via `vaultService.useArgonParamsForTesting`; `check-prod.mjs` fails if that call ships.
+- **Recurring**: each occurrence posts through `postLinkedTransaction` with id `<rule>@<scheduled ms>`, so catch-up, re-runs and "Pay now" can never double-post. Catch-up is capped at 400 per rule.
 - **Sayad ID**: shape-only validation; the Central Bank publishes no checksum.
 - **Bank SMS senders / Android packages**: left empty, never guessed (PROMPT.md §1.4).
 - **Icons**: PWA icons generated; Android launcher icons still Capacitor defaults (Phase 9).

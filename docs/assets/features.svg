@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" width="1200" height="520" role="img" aria-labelledby="t d">
+  <title id="t">Arizo Manage features</title>
+  <desc id="d">Eight animated feature cards: encrypted vault, bank SMS engine, cheques and loans, analytics, invoices and printing, encrypted backup, Jalali calendar, zero network.</desc>
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141B29"/>
+      <stop offset="1" stop-color="#0D111A"/>
+    </linearGradient>
+    <style>
+      .c { opacity: 0; animation: rise .9s cubic-bezier(.2,.8,.2,1) forwards }
+      .c:nth-of-type(1){animation-delay:.05s}.c:nth-of-type(2){animation-delay:.15s}.c:nth-of-type(3){animation-delay:.25s}.c:nth-of-type(4){animation-delay:.35s}
+      .c:nth-of-type(5){animation-delay:.45s}.c:nth-of-type(6){animation-delay:.55s}.c:nth-of-type(7){animation-delay:.65s}.c:nth-of-type(8){animation-delay:.75s}
+      @keyframes rise { from { opacity: 0; transform: translateY(18px) } to { opacity: 1; transform: none } }
+      .glow { animation: glow 3.2s ease-in-out infinite }
+      @keyframes glow { 0%,100% { opacity: .35 } 50% { opacity: .9 } }
+      .t { font: 700 21px 'Segoe UI', Inter, Arial, sans-serif; fill: #F4F7FB }
+      .s { font: 400 15px 'Segoe UI', Inter, Arial, sans-serif; fill: #8E9BB0 }
+      @media (prefers-reduced-motion: reduce) { * { animation: none !important; opacity: 1 !important } }
+    </style>
+  </defs>
+  <rect width="1200" height="520" rx="28" fill="#06080D"/>
+
+  <!-- row 1 -->
+  <g class="c">
+    <rect x="24" y="24" width="276" height="224" rx="22" fill="url(#card)" stroke="#fff" stroke-opacity=".08"/>
+    <circle class="glow" cx="78" cy="82" r="30" fill="#00D69F" fill-opacity=".16"/>
+    <path d="M66 82v-8a12 12 0 0 1 24 0v8M62 82h32v22H62z" fill="none" stroke="#00D69F" stroke-width="3" stroke-linejoin="round"/>
+    <text class="t" x="48" y="152">Encrypted vault</text>
+    <text class="s" x="48" y="182">AES-256-GCM + Argon2id,</text>
+    <text class="s" x="48" y="204">SQLCipher, biometrics,</text>
+    <text class="s" x="48" y="226">duress PIN</text>
+  </g>
+  <g class="c">
+    <rect x="316" y="24" width="276" height="224" rx="22" fill="url(#card)" stroke="#fff" stroke-opacity=".08"/>
+    <circle class="glow" cx="370" cy="82" r="30" fill="#4DA6FF" fill-opacity=".16" style="animation-delay:.6s"/>
+    <path d="M352 70h36v24h-22l-10 8v-8h-4z" fill="none" stroke="#4DA6FF" stroke-width="3" stroke-linejoin="round"/>
+    <text class="t" x="340" y="152">Bank SMS engine</text>
+    <text class="s" x="340" y="182">39 banks, OTP firewall,</text>
+    <text class="s" x="340" y="204">teach-the-parser,</text>
+    <text class="s" x="340" y="226">89 test vectors</text>
+  </g>
+  <g class="c">
+    <rect x="608" y="24" width="276" height="224" rx="22" fill="url(#card)" stroke="#fff" stroke-opacity=".08"/>
+    <circle class="glow" cx="662" cy="82" r="30" fill="#E6C47A" fill-opacity=".16" style="animation-delay:1.2s"/>
+    <path d="M644 70h36v26h-36zM644 80h36M652 90h10" fill="none" stroke="#E6C47A" stroke-width="3" stroke-linejoin="round"/>
+    <text class="t" x="632" y="152">Cheques &amp; loans</text>
+    <text class="s" x="632" y="182">Sayad cheques, exact</text>
+    <text class="s" x="632" y="204">installment schedules,</text>
+    <text class="s" x="632" y="226">debts &amp; reminders</text>
+  </g>
+  <g class="c">
+    <rect x="900" y="24" width="276" height="224" rx="22" fill="url(#card)" stroke="#fff" stroke-opacity=".08"/>
+    <circle class="glow" cx="954" cy="82" r="30" fill="#FF5C7A" fill-opacity=".16" style="animation-delay:1.8s"/>
+    <path d="M938 98V84m10 14V70m10 28V78m10 20V74" fill="none" stroke="#FF5C7A" stroke-width="3" stroke-linecap="round"/>
+    <text class="t" x="924" y="152">Analytics</text>
+    <text class="s" x="924" y="182">Sankey, heatmap, budgets,</text>
+    <text class="s" x="924" y="204">health score, insights</text>
+    <text class="s" x="924" y="226">computed offline</text>
+  </g>
+
+  <!-- row 2 -->
+  <g class="c">
+    <rect x="24" y="272" width="276" height="224" rx="22" fill="url(#card)" stroke="#fff" stroke-opacity=".08"/>
+    <circle class="glow" cx="78" cy="330" r="30" fill="#E6C47A" fill-opacity=".16" style="animation-delay:.3s"/>
+    <path d="M64 316h20l8 8v22H64zM70 332h16M70 340h12" fill="none" stroke="#E6C47A" stroke-width="3" stroke-linejoin="round"/>
+    <text class="t" x="48" y="400">Invoices &amp; print</text>
+    <text class="s" x="48" y="430">A4 · A5 · 58/80 mm thermal,</text>
+    <text class="s" x="48" y="452">total in Persian words,</text>
+    <text class="s" x="48" y="474">Excel &amp; CSV</text>
+  </g>
+  <g class="c">
+    <rect x="316" y="272" width="276" height="224" rx="22" fill="url(#card)" stroke="#fff" stroke-opacity=".08"/>
+    <circle class="glow" cx="370" cy="330" r="30" fill="#00D69F" fill-opacity=".16" style="animation-delay:.9s"/>
+    <path d="M356 334a14 14 0 1 1 4 10M356 334l-6-6M356 334l6-6" fill="none" stroke="#00D69F" stroke-width="3" stroke-linecap="round"/>
+    <text class="t" x="340" y="400">.arizo backup</text>
+    <text class="s" x="340" y="430">Zero-knowledge, 24-word</text>
+    <text class="s" x="340" y="452">recovery key, works across</text>
+    <text class="s" x="340" y="474">Android ↔ iPhone</text>
+  </g>
+  <g class="c">
+    <rect x="608" y="272" width="276" height="224" rx="22" fill="url(#card)" stroke="#fff" stroke-opacity=".08"/>
+    <circle class="glow" cx="662" cy="330" r="30" fill="#4DA6FF" fill-opacity=".16" style="animation-delay:1.5s"/>
+    <path d="M644 318h36v28h-36zM644 326h36M652 312v8M672 312v8" fill="none" stroke="#4DA6FF" stroke-width="3" stroke-linejoin="round"/>
+    <text class="t" x="632" y="400">Jalali-first</text>
+    <text class="s" x="632" y="430">Shamsi calendar, Persian</text>
+    <text class="s" x="632" y="452">digits, Toman ⇄ Rial,</text>
+    <text class="s" x="632" y="474">full RTL + English LTR</text>
+  </g>
+  <g class="c">
+    <rect x="900" y="272" width="276" height="224" rx="22" fill="url(#card)" stroke="#fff" stroke-opacity=".08"/>
+    <circle class="glow" cx="954" cy="330" r="30" fill="#FF5C7A" fill-opacity=".16" style="animation-delay:2.1s"/>
+    <path d="M940 316l28 28M954 314a16 16 0 1 0 0.1 0" fill="none" stroke="#FF5C7A" stroke-width="3" stroke-linecap="round"/>
+    <text class="t" x="924" y="400">Zero network</text>
+    <text class="s" x="924" y="430">No server, no telemetry,</text>
+    <text class="s" x="924" y="452">strict CSP, WebView</text>
+    <text class="s" x="924" y="474">firewall</text>
+  </g>
+</svg>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Arizo launcher glyph (public/icons/icon.svg), inside the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillType="evenOdd"
+        android:pathData="M54.00,27.00 L75.88,77.82 L66.35,77.82 L61.59,66.53 L46.41,66.53 L41.65,77.82 L32.12,77.82 Z M49.76,58.41 L58.24,58.41 L54.00,48.18 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="32.12" android:startY="27.00"
+                android:endX="75.88" android:endY="81.00">
+                <item android:offset="0" android:color="#FFF1D9A0" />
+                <item android:offset="1" android:color="#FFB8892D" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FF00D69F" android:pathData="M52.24,79.24 a1.76,1.76 0 1,0 3.53,0 a1.76,1.76 0 1,0 -3.53,0 Z" />
+</vector>

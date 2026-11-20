@@ -20,5 +20,18 @@ for (const [name, size, scale] of targets) {
   );
   await page.screenshot({ path: `public/icons/${name}`, omitBackground: false });
 }
+// Android legacy launcher icons (pre-Android 8; 8+ uses the adaptive vector in
+// android/app/src/main/res/drawable/ic_launcher_foreground.xml). Square for ic_launcher, circle for _round.
+const densities = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
+for (const [d, size] of Object.entries(densities)) {
+  for (const round of [false, true]) {
+    await page.setViewportSize({ width: size, height: size });
+    await page.setContent(
+      `<body style="margin:0;background:transparent"><div style="width:${size}px;height:${size}px;overflow:hidden;border-radius:${round ? '50%' : `${size * 0.18}px`}">` +
+        `${svg.replace('<svg ', '<svg width="100%" height="100%" ')}</div></body>`,
+    );
+    await page.screenshot({ path: `android/app/src/main/res/mipmap-${d}/ic_launcher${round ? '_round' : ''}.png`, omitBackground: true });
+  }
+}
 await browser.close();
 console.log('icons written:', targets.map((t) => t[0]).join(', '));

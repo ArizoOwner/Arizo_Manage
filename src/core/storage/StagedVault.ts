@@ -42,6 +42,9 @@ const key = (store: StoreName, id: string) => `${store}\u0000${id}`;
 export class StagedVault implements IVaultDatabase {
   private backend: RawBackend | null;
   private staging: Map<string, WriteOp> | null = null;
+  private joined: Promise<unknown>[] = [];
+  private commit: Promise<void> | null = null;
+  private sealed = false;
 
   constructor(
     readonly kind: IVaultDatabase['kind'],
@@ -87,16 +90,54 @@ export class StagedVault implements IVaultDatabase {
   };
 
   async transaction<T>(fn: (tx: VaultTx) => Promise<T>): Promise<T> {
-    if (this.staging) return fn(this.staged); // nested: join the outer transaction
+    // The batch is being written: a caller arriving now runs in its own transaction afterwards.
+    if (this.staging && this.sealed) return (this.commit ?? Promise.resolve()).catch(() => {}).then(() => this.transaction(fn));
+    if (this.staging) {
+      // Nested call, or a concurrent caller (without async context the two look the same): join the
+      // outer batch. The outer waits for every joiner before committing, so no write lands in a batch
+      // that was already applied and cleared (found by the Phase 9 stress test). A joiner that is still
+      // running after the outer fn settled is concurrent, not nested: it settles with the commit, so it
+      // never reports success for a batch that failed.
+      const p = fn(this.staged);
+      this.joined.push(p);
+      return p.then((r) => (this.commit ? this.commit.then(() => r) : r));
+    }
     const be = this.be();
     this.staging = new Map();
+    this.joined = [];
+    let gate!: { ok: () => void; fail: (e: unknown) => void };
     try {
-      const result = await fn(this.staged);
-      const ops = [...this.staging.values()];
-      if (ops.length) await be.applyBatch(ops);
-      return result;
+      let result: T | undefined;
+      let error: unknown;
+      let threw = false;
+      try {
+        result = await fn(this.staged);
+      } catch (e) {
+        threw = true;
+        error = e;
+      }
+      this.commit = new Promise<void>((ok, fail) => (gate = { ok, fail }));
+      this.commit.catch(() => {});
+      while (this.joined.length) {
+        const wait = this.joined;
+        this.joined = [];
+        await Promise.allSettled(wait);
+      }
+      this.sealed = true;
+      try {
+        if (threw) throw error;
+        const ops = [...this.staging.values()];
+        if (ops.length) await be.applyBatch(ops);
+      } catch (e) {
+        gate.fail(e);
+        throw e;
+      }
+      gate.ok();
+      return result as T;
     } finally {
       this.staging = null;
+      this.commit = null;
+      this.sealed = false;
     }
   }
 

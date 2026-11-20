@@ -12,7 +12,7 @@ const stripCspInDev = (): Plugin => ({
   transformIndexHtml: (html) => html.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>\s*/, ''),
 });
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   // Relative base: works from Capacitor's https://localhost and from any static sub-path (GitHub Pages).
   base: './',
   plugins: [
@@ -51,9 +51,12 @@ export default defineConfig({
     }),
   ],
   build: { target: 'es2022', sourcemap: false },
+  // Zero production logs (PROMPT.md §1.5): every console.* call, ours and the libraries', is removed from
+  // the production bundle and its workers. E2E builds keep them so the tests can see page errors.
+  esbuild: mode === 'production' ? { drop: ['console', 'debugger'] } : {},
   worker: { format: 'es' },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
   },
-});
+}));

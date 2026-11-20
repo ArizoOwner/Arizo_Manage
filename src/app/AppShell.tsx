@@ -17,6 +17,11 @@ export function AppShell() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
+  // Locking closes the entry sheet for good; without this it popped up again after the next unlock
+  // (AppShell itself stays mounted while it renders the lock screen). Phase 9 audit fix.
+  useEffect(() => {
+    if (!open) setEntry(null);
+  }, [open]);
 
   if (!initialized) return <Onboarding />;
   if (!open) return <LockScreen />;

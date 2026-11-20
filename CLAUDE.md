@@ -5,6 +5,7 @@ The spec is `PROMPT.md`. It is the source of truth; this file records what is **
 **Project location:** `D:\Projects\Arizo Manage` (moved from `Downloads` on 2026-11-20).
 **Working mode:** the user asked for phases to run back to back without stopping for approval. Still pass each gate and commit each phase.
 **Language:** reply to the user in Persian (فارسی). Code, paths and commands stay in Latin.
+**GitHub:** if GitHub is needed (repo, GitHub Pages for the PWA), use the user's account `arizoowner`. Creating repos, pushing and deploying still need the user's go-ahead.
 
 ## Phase status
 | Phase | Scope | Status |
@@ -18,7 +19,9 @@ The spec is `PROMPT.md`. It is the source of truth; this file records what is **
 | 6 | Analytics, budgets, goals, insights | ✅ done, gate green (406 unit + 25 E2E, R8 release APK) |
 | 7 | Invoice Studio, statements, printing, CSV/Excel | ✅ done, gate green (443 unit + 27 E2E, R8 release APK) |
 | 8 | Encrypted `.arizo` backup & restore | ✅ done, gate green (475 unit + 29 E2E, R8 release APK) |
-| 9 | See PROMPT.md §8 | ⏳ next |
+| 9 | Stress test, security audit, launcher icons, distribution guide | ✅ done, gate green (477 unit + 32 E2E incl. 20k stress + offline + modal auto-lock, R8 release APK) |
+
+All phases of PROMPT.md §8 are done. Next work is real-device verification (list at the end).
 
 ## Commands
 | Command | What it does |
@@ -28,12 +31,13 @@ The spec is `PROMPT.md`. It is the source of truth; this file records what is **
 | `npm run build` | typecheck + production build + service worker into `dist/` |
 | `npm test` | Vitest (`tests/**/*.test.ts`, node env; fake-indexeddb + sql.js for storage) |
 | `npm run e2e` | Playwright: builds `--mode e2e` into `dist-e2e/` (gallery route on, CSP on) and serves it on :4173 |
-| `node scripts/check-prod.mjs` | After `npm run build`: fails if the dev-only gallery or the cheap-Argon2 test hook leaked into `dist/` |
+| `node scripts/check-prod.mjs` | After `npm run build`: fails if dev/E2E code (gallery, cheap-Argon2 hook, `__arizoE2E` stress hooks) leaked into `dist/`, a source map shipped, a console call beyond the counted residue survived, `index.html` lost its CSP or gained an inline script, or a JS chunk names an unreviewed remote host |
+| `npx playwright test tests/e2e/stress.spec.ts` | 20,000-row stress test; prints `[stress]` frame and worker timings |
 | `SHOOT=1 npx playwright test tests/e2e/screens-shoot.spec.ts` | Manual visual review: screenshots of the main screens (incl. full-page Analytics) into `test-results/shots/` (skipped in the gate) |
 | `npx cap sync android` | Copy `dist/` into the Android project |
 | `cd android && ./gradlew assembleDebug` | Debug APK (needs `android/local.properties` with `sdk.dir`, git-ignored) |
-| `cd android && ./gradlew assembleRelease` | R8-minified release APK (unsigned until Phase 9 signing docs) |
-| `node scripts/gen-icons.mjs` | Re-rasterise PWA/iOS icons from `public/icons/icon.svg` |
+| `cd android && ./gradlew assembleRelease` | R8-minified release APK; signed when `android/keystore.properties` exists (git-ignored, see `docs/distribution_fa.md`), otherwise `app-release-unsigned.apk` |
+| `node scripts/gen-icons.mjs` | Re-rasterise PWA/iOS icons and the Android legacy launcher PNGs (`mipmap-*/ic_launcher{,_round}.png`) from `public/icons/icon.svg` |
 
 ## Stack (installed versions)
 React 19.3 · TypeScript 5.9 (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) · Vite 6.4 · Tailwind 4.3 · Framer Motion 12 · React Router 7 (`createHashRouter`) · Zustand 5 · vite-plugin-pwa 1.3 · hash-wasm 4.13 · Dexie 4.4 · Vitest 3 · Playwright 1.65 · Capacitor 7.6.
@@ -41,7 +45,7 @@ Dev-only: fake-indexeddb 6, sql.js 1.17 (runs the Android SQL in tests).
 Android: Kotlin 2.1.21 · SQLCipher `net.zetetic:sqlcipher-android` 4.10.0 (+ androidx.sqlite 2.2.0) · androidx.biometric 1.1.0 · androidx.webkit.
 Toolchain: Node 24, JDK 21, Android SDK at `%LOCALAPPDATA%\Android\Sdk`.
 Phase 2 added: jalaali-js 1.2, i18next 25 + react-i18next 15, @capacitor/haptics 7. Phase 3 added: @tanstack/react-virtual 3. Phase 4 added: @capacitor/local-notifications 7. Phase 5 and Phase 6 added no dependency (charts are custom SVG). Phase 8 added no dependency (gzip = platform `CompressionStream`; the BIP-39 English word list is bundled as `src/core/data/bip39-english.json`). Phase 7 added: exceljs 4.4 (worker only), uqr 0.1 (QR as SVG paths, MIT, no deps), html-to-image 1.11 (3x PNG + thermal raster), @capacitor/share 7 + @capacitor/filesystem 7.
-Not yet installed (added when first used): @capacitor/app.
+Phase 9 added no dependency. @capacitor/app was never needed (Android pause/resume reach JS through `MainActivity.triggerWindowJSEvent`).
 
 ## Security invariants (never regress)
 1. **CSP** in `index.html` is the PROMPT.md §1.2 policy plus tightening, plus one documented addition: `script-src 'self' 'wasm-unsafe-eval'` (required to instantiate the Argon2id WASM; it allows WebAssembly compilation only, not JS `eval`). Pinned by `tests/csp.test.ts`. No remote origin, ever.
@@ -49,7 +53,7 @@ Not yet installed (added when first used): @capacitor/app.
 3. **Zero network**: no CDN, no telemetry, no Firebase (google-services removed from Gradle). `MainActivity.FirewallWebViewClient` answers every non-`https://localhost` request with 403 and refuses navigation away. E2E asserts zero external requests on web.
 4. **Android manifest**: `allowBackup=false`, `fullBackupContent=false`, `dataExtractionRules` exclude all, `usesCleartextTraffic=false`, `network_security_config.xml` forbids cleartext. `FLAG_SECURE` set in `onCreate`; only `ArizoSecurity.setScreenshotAllowed({allowForMs ≤ 120000})` lifts it temporarily.
 5. **Money** is `bigint` minor units end to end (schema, ledger, codec). `src/core/currency/money.ts` has no float math.
-6. **Never log** secrets: `SecureLogger` is a no-op in production and redacts in dev. R8 strips `android.util.Log` in release.
+6. **Never log** secrets: `SecureLogger` is a no-op in production and redacts in dev. Production builds drop every `console.*` (`esbuild.drop` in `vite.config.ts`; i18next `showSupportNotice: false`); `check-prod.mjs` allows only Capacitor's bridge `win.console.error` and Workbox's sw `console.warn`. R8 strips `android.util.Log` in release.
 7. **DEK handling**: Android DEK exists only in native memory (`ArizoSecurityPlugin` → `ArizoSqlCipherPlugin.takeDek()`, zeroized after keying). Web CryptoKeys are non-extractable; raw bytes are zeroized after import; the crypto worker is terminated on lock.
 8. **Record AAD**: every web ciphertext is bound to `arizo/rec/v1|<store>|<id>`, so rows cannot be swapped or moved. Tested.
 9. **SMS firewall first**: OTP/2FA and promo messages are rejected before anything else and are never written anywhere (no transaction, no inbox entry, no audit row). Native `SmsFilter` drops them before sealing; `firewall()` drops them again in JS. Pinned by `tests/sms-parser.test.ts` ("never persisted anywhere").
@@ -59,6 +63,15 @@ Not yet installed (added when first used): @capacitor/app.
 13. **Exports leave the vault only on purpose**: every print/PNG/xlsx/csv/thermal action needs a fresh PIN (`useReauth`) and is refused while stealth blur is on (the hidden print copy is not even mounted then). Android writes the file to the app cache only for the share sheet and deletes it in `finally`. CSV text cells starting with `= + - @` get a leading `'` (formula injection); plain signed numbers stay raw.
 15. **Backups are zero-knowledge and tamper-evident**: a `.arizo` file is AES-256-GCM under a random file key, wrapped per slot (Argon2id of the passphrase; HKDF of the Recovery Key); the whole header is the body AAD and its fixed part is each slot's AAD, so any bit flip, a wrong secret or truncation fails before anything is written. Creating and restoring need re-auth; audit rows say only `file`/`file+recovery`/`replace`/`merge`. Backup bookkeeping (`settings.backup_state`, `backup_snapshots`) never travels in a file and is never overwritten by a restore. Pinned by `tests/backup.test.ts`.
 14. **One socket, LAN only**: `ArizoThermalPrintPlugin` opens raw TCP only to a literal private IPv4 (10/8, 172.16/12, 192.168/16, 169.254/16; no hostnames, so no DNS) or RFCOMM to an already-paired printer. `BLUETOOTH_CONNECT` is requested only when the user turns thermal printing on. The WebView firewall is unchanged; JS never opens a socket.
+
+## Phase 9: stress, audit, icons, distribution
+- `seedStressData(db, total)` in `src/core/utils/demoData.ts`: demo vault + bulk rows through `createTransaction`/`createTransfer`, 500 per outer `db.transaction` (one atomic batch), `verifyLedger` clean. `src/app/e2eHooks.ts` (E2E builds only, imported behind `VITE_E2E` in `main.tsx`) exposes `window.__arizoE2E.{stress, analyticsMs, smsMs}`.
+- `tests/e2e/stress.spec.ts` thresholds (CI-realistic, documented in `docs/security.md` §7): ledger scroll p95 frame ≤ 34 ms and ≤ 5 % frames > 50 ms; analytics worker median over 20k rows < 150 ms; SMS worker 1,000 messages < 150 ms. Measured on this laptop (headless Chromium): p95 16.8 ms, 0 % long frames, analytics 121 ms / 69 ms in two runs (max 127), SMS 58 ms / 30 ms.
+- `tests/e2e/hardening.spec.ts`: auto-lock from inside the entry sheet, a receipt sheet and a re-auth sheet (no dialog, curtain or merchant text left; nothing reopens after unlock); airplane mode (service worker active → offline reload → lock screen → unlock → data and Analytics render, zero failed requests).
+- Audit fixes: `StagedVault.transaction` waits for every joined (nested or concurrent) call before committing and queues callers that arrive while a batch is being written (regression test in `tests/storage-contract.test.ts`); the privacy curtain lifts on `visibilitychange`/`pageshow`/Android `onResume` → `arizoNativeResume` even after the vault locked; `AppShell` closes the entry sheet on lock; production console output removed.
+- Android launcher: adaptive icon = `drawable/ic_launcher_foreground.xml` (vector glyph inside the 66 dp safe zone, gold gradient + emerald dot) on `#06080D`, with a `<monochrome>` layer; legacy PNGs from `gen-icons.mjs`. Capacitor default icon files removed.
+- Release signing: `android/app/build.gradle` reads `android/keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`); `keystore.properties`, `*.jks`, `*.keystore` are git-ignored.
+- Docs: `docs/security.md` (threat model, controls, findings, residual risks, unverified list, performance), `docs/distribution_fa.md` (Persian: APK build/sign/verify/install on Windows/macOS/Linux, Restricted Settings, PWA on Cloudflare Pages/GitHub Pages/Vercel, iPhone install, Shortcuts, backups and a lost phone), `docs/architecture.md`, `docs/sms_engine.md`.
 
 ## Architecture (Phase 1)
 - `src/core/crypto/`: `bytes` (zeroize, b64, hex, constant-time compare, chunked CSPRNG), `primitives` (Argon2id m=64MiB t=3 p=1, AES-256-GCM seal/open with 96-bit nonce, HKDF-SHA256), `keyring` (DEK wrapped per PIN slot; main + decoy slots; all slots always derived so timing hides the decoy; HKDF sub-keys `record`/`blob`/`index`), `crypto.worker` + `cryptoClient` (transferable PIN buffers, terminate on lock).
@@ -157,7 +170,7 @@ Not yet installed (added when first used): @capacitor/app.
 - **Recurring**: each occurrence posts through `postLinkedTransaction` with id `<rule>@<scheduled ms>`, so catch-up, re-runs and "Pay now" can never double-post. Catch-up is capped at 400 per rule.
 - **Sayad ID**: shape-only validation; the Central Bank publishes no checksum.
 - **Bank SMS senders / Android packages**: left empty, never guessed (PROMPT.md §1.4).
-- **Icons**: PWA icons generated; Android launcher icons still Capacitor defaults (Phase 9).
+- **Icons**: PWA icons and Android launcher (adaptive vector + legacy PNGs) all come from `public/icons/icon.svg` (Phase 9).
 - **SMS bank detection by name keywords, never by sender**: banks.json senders and packages stay empty. A sender the user confirms in the Inbox is stored in the vault (`settings.sms_senders`) and used from then on.
 - **SMS inbox and sender map live in `settings` rows** (encrypted like every record) instead of new stores, so no schema or migration change was needed.
 - **Every captured SMS is `pending_review`**: nothing auto-posts, even at confidence 1. Approving teaches merchant to category.
@@ -179,9 +192,13 @@ Not yet installed (added when first used): @capacitor/app.
 - **Recovery Key is stored in the vault** (`settings.backup_recovery`) so every later backup gets a recovery slot without re-typing the words; it is as protected as the vault itself and never leaves it except as a wrapped slot. Turning it off soft-deletes the row.
 - **Local snapshots are gzip only inside the vault blob store**, not a second passphrase layer: they never leave the device and the blob store already encrypts (web AES-GCM, Android SQLCipher).
 - **Smart Merge tie rule**: equal `updated_at` keeps the local row; skipped transfer halves are reported by `verifyLedger`, not auto-dropped (documented shortcut in `restore.ts`).
+- **Nested and concurrent transactions share one batch** (Phase 9): without async context a concurrent caller cannot be told from a nested one, so both join; the outer commit waits for all joiners, and a joiner that outlives the outer fn settles with the commit. Callers arriving during the batch write run afterwards in their own transaction.
+- **Stress thresholds are CI-realistic, not a phone benchmark**: p95 ≤ 2 frames at 60 Hz in headless Chromium; workers timed post → result with the worker warm. Real-device numbers are still to be measured.
+- **Console dropped at build time** (esbuild `drop`) rather than wrapping libraries: covers Dexie, React Router, exceljs and i18next in one place; the two residues are not `console.x(` calls and are counted by `check-prod.mjs`.
 - **exceljs only in a worker**: it is ~0.9 MB, so it lives in `xlsx.worker` alone; the main bundle grew ~97 kB (30 kB gzip) for all of Phase 7.
 
 ## Not yet verified on a real device
+Nothing below has run on a physical phone, printer or iPhone; Phase 9 only compiled it (debug + R8 release), reviewed it and checked the R8 mapping keeps the plugin classes. Also unverified: the new adaptive launcher icon on a real launcher, the `onResume` curtain event, every plugin method answering after R8, and 60 fps on a phone (stress numbers are headless desktop Chromium).
 FLAG_SECURE, WebView firewall, BiometricPrompt + Keystore invalidation, SQLCipher open/`cipher_version`, sensitive clipboard, and all Phase 5 native code: SMS_RECEIVED receiver, notification listener, Restricted Settings flow, sealed queue round trip, history scan, capture notification. All compile in debug and R8 release builds; none has been run on a phone. Phase 6 chart-scrubbing haptics (`Haptics.selectionChanged`) are a no-op on web and untested on a device. The iOS Shortcuts hand-off is tested in Playwright (fragment wipe + ingest), not on a real iPhone. Phase 8: the Android `.arizo` share-sheet hand-off and file picker restore, and restoring an Android file on a real iPhone (cross-adapter restore is unit-tested on sql.js ↔ fake-indexeddb). Phase 7: `ArizoPrintPlugin` (PrintManager dialog, Persian shaping on paper), `ArizoThermalPrintPlugin` (Bluetooth SPP and TCP 9100 to a real ESC/POS printer, the BLUETOOTH_CONNECT prompt), the Android share-sheet file hand-off and AirPrint from the iOS PWA are untested on hardware; ESC/POS bytes are unit-tested and the print layout is checked in Playwright under print media.
 
 ## Layout

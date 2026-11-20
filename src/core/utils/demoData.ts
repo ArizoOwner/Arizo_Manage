@@ -109,3 +109,44 @@ export async function seedDemoData(db: IVaultDatabase, opts: DemoOptions = {}): 
 
   return { accounts: 4, transactions: count };
 }
+
+/**
+ * Phase 9 stress data: the demo vault plus bulk expenses/incomes/transfers until `total` rows exist.
+ * Bulk path: up to `chunk` ledger calls join one outer vault transaction (one atomic batch), so every
+ * row still goes through createTransaction/createTransfer and balances stay exact (verifyLedger clean).
+ */
+export async function seedStressData(db: IVaultDatabase, total = 20_000, opts: { now?: number; chunk?: number } = {}): Promise<number> {
+  const now = opts.now ?? Date.now();
+  const chunk = opts.chunk ?? 500;
+  await seedDemoData(db, { now, days: 365 });
+  const accounts = (await db.find('accounts')).filter((a) => a.deleted_at === null);
+  const r = rng(2026);
+  let count = (await db.find('transactions')).length;
+  const spanDays = 3 * 365;
+  while (count < total) {
+    const n = Math.min(chunk, total - count);
+    count += await db.transaction(async () => {
+      let made = 0;
+      while (made < n) {
+        const at = now - Math.floor(r() * spanDays * DAY);
+        const roll = r();
+        if (roll < 0.04 && n - made >= 2) {
+          const from = accounts[Math.floor(r() * accounts.length)]!;
+          const to = accounts.find((a) => a.id !== from.id)!;
+          await createTransfer(db, { from_account_id: from.id, to_account_id: to.id, amount_minor: 1_000_000n, occurred_at: at }, at);
+          made += 2;
+        } else if (roll < 0.1) {
+          await createTransaction(db, { account_id: accounts[0]!.id, type: 'income', amount_minor: 30_000_000n, occurred_at: at, category_id: 'cat_salary', merchant_name: 'پاداش' }, at);
+          made++;
+        } else {
+          const [cat, merchant, lo, hi] = EXPENSES[Math.floor(r() * EXPENSES.length)]!;
+          const minor = BigInt(Math.round((lo + r() * (hi - lo)) / 10_000)) * 10_000n;
+          await createTransaction(db, { account_id: accounts[1 + Math.floor(r() * (accounts.length - 1))]!.id, type: 'expense', amount_minor: minor, occurred_at: at, category_id: cat, merchant_name: merchant }, at);
+          made++;
+        }
+      }
+      return made;
+    });
+  }
+  return count;
+}

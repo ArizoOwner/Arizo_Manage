@@ -138,6 +138,27 @@ describe.each(ADAPTERS)('IVaultDatabase contract — %s', (_name, make) => {
     expect(await db.count('accounts')).toBe(0);
   });
 
+  it('a concurrent write that starts mid-transaction never lands in a cleared batch', async () => {
+    // Phase 9 regression: a write fired while another transaction was open (e.g. a background job
+    // during a bulk seed) joined it, kept running after the commit and hit `staging = null`.
+    const db = await fresh();
+    const a = acct('A');
+    const b = acct('B');
+    const slow = db.transaction(async (t) => {
+      await t.put('accounts', a);
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    const side = (async () => {
+      await new Promise((r) => setTimeout(r, 1));
+      await db.transaction(async (t) => {
+        await new Promise((r) => setTimeout(r, 20)); // outlives the outer fn
+        await t.put('accounts', b);
+      });
+    })();
+    await Promise.all([slow, side]);
+    expect((await db.find('accounts')).map((x) => x.name).sort()).toEqual(['A', 'B']);
+  });
+
   it('enforces UNIQUE sms_fingerprint_sha256 (null allowed many times)', async () => {
     const db = await fresh();
     const a = acct();

@@ -48,6 +48,23 @@ export function AutoLockManager() {
     };
   }, [open, autoLockMs]);
 
+  // The curtain lifts on return whether or not the vault is still open. Phase 9 audit fix: this lived in
+  // the effect above, which is torn down the moment the vault locks, so after an auto-lock on hide the
+  // curtain stayed over the lock screen and swallowed every tap on the PIN pad.
+  useEffect(() => {
+    const show = () => {
+      if (document.visibilityState !== 'hidden') useVault.getState().setCurtain(false);
+    };
+    document.addEventListener('visibilitychange', show);
+    window.addEventListener('arizoNativeResume', show);
+    window.addEventListener('pageshow', show);
+    return () => {
+      document.removeEventListener('visibilitychange', show);
+      window.removeEventListener('arizoNativeResume', show);
+      window.removeEventListener('pageshow', show);
+    };
+  }, []);
+
   return null;
 }
 

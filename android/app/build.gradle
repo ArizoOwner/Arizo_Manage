@@ -17,8 +17,24 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Release signing from android/keystore.properties (git-ignored; see docs/distribution_fa.md).
+    // Without that file the release APK is built unsigned, so CI and fresh clones still build.
+    def ksFile = rootProject.file('keystore.properties')
+    def ks = new Properties()
+    if (ksFile.exists()) ksFile.withInputStream { ks.load(it) }
+    signingConfigs {
+        if (ksFile.exists()) {
+            release {
+                storeFile rootProject.file(ks['storeFile'])
+                storePassword ks['storePassword']
+                keyAlias ks['keyAlias']
+                keyPassword ks['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (ksFile.exists()) signingConfig signingConfigs.release
             // R8 shrinking + obfuscation (PROMPT.md §5.3).
             minifyEnabled true
             shrinkResources true

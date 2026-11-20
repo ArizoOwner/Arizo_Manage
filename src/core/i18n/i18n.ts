@@ -10,6 +10,8 @@ void i18n.use(initReactI18next).init({
   fallbackLng: 'fa',
   interpolation: { escapeValue: false }, // React already escapes
   returnNull: false,
+  // i18next prints a sponsor console.info on first init; production must log nothing (Phase 9 audit).
+  showSupportNotice: false,
 });
 
 export default i18n;

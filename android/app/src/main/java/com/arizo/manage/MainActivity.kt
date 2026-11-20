@@ -61,6 +61,12 @@ class MainActivity : BridgeActivity() {
         bridge?.triggerWindowJSEvent("arizoNativePause")
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Lifts the privacy curtain (and lets the JS side decide whether the hidden time locked the vault).
+        bridge?.triggerWindowJSEvent("arizoNativeResume")
+    }
+
     /** Called by ArizoSecurityPlugin for the user's temporary 2-minute screenshot allowance. */
     fun setSecureFlag(secure: Boolean) = runOnUiThread {
         if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)

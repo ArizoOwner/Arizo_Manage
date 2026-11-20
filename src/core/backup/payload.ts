@@ -10,7 +10,7 @@ import { SQL_SCHEMA_VERSION } from '../storage/SqlVaultAdapter';
 import { WEB_DB_VERSION } from '../storage/WebEncryptedDexieAdapter';
 import { BackupError } from './container';
 
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.1.0';
 export const PAYLOAD_VERSION = 1;
 
 /** Settings rows that describe this device's backups; never exported, never overwritten by a restore. */

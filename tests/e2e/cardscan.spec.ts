@@ -29,6 +29,22 @@ test('on-device OCR reads a synthetic card: number, expiry, CVV2; zero network',
   expect(external).toEqual([]);
 });
 
+test('on-device OCR reads a vertical card (Blu Bank layout, text along the long edge)', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await page.waitForFunction(() => 'ocrCard' in ((window as unknown as { __arizoE2E?: object }).__arizoE2E ?? {}));
+  const r = await page.evaluate(() =>
+    (window as unknown as { __arizoE2E: { ocrCard(l: string[], v: boolean): Promise<{ text: string; ms: number; number: string | null; expiry: string | null; cvv2: string | null }> } }).__arizoE2E.ocrCard(
+      ['6219 8612', '3456 7898', 'CVV2 731', '1406/11'],
+      true,
+    ),
+  );
+  console.log(`[ocr-vertical] ${Math.round(r.ms)} ms, text=${JSON.stringify(r.text)}`);
+  expect(r.number).toBe('6219861234567898');
+  expect(r.cvv2).toBe('731');
+  expect(r.expiry).toBe('11/06');
+});
+
 test('scan sheet: camera denied shows the fallback; manual expiry and CVV2 are validated and kept masked', async ({ page }) => {
   test.setTimeout(120_000);
   await page.addInitScript(() => {
@@ -78,4 +94,20 @@ test('scan sheet: camera denied shows the fallback; manual expiry and CVV2 are v
   }
   await expect(page.getByTestId('card-expiry')).toHaveText('۱۱/۰۶');
   await expect(page.getByTestId('card-cvv2')).toHaveText('۷۳۱');
+
+  // Delete the card (confirm sheet, PIN if the re-auth window closed), then bring it back from the Trash.
+  await page.getByTestId('account-delete').click();
+  await page.getByTestId('account-delete-confirm').click();
+  if (await page.getByTestId('pin-pad').isVisible().catch(() => false)) {
+    for (const d of '482916') await page.keyboard.press(d);
+    await page.getByTestId('pin-submit').last().click();
+  }
+  await expect(page).toHaveURL(/#\/accounts$/);
+  await expect(page.getByText('کارت سامان')).toHaveCount(0);
+  await page.evaluate(() => (location.hash = '#/trash'));
+  await expect(page.getByTestId('trash-account')).toContainText('کارت سامان');
+  await page.getByTestId('trash-account-restore').click();
+  await expect(page.getByTestId('trash-account')).toHaveCount(0);
+  await page.evaluate(() => (location.hash = '#/accounts'));
+  await expect(page.getByText('کارت سامان').first()).toBeVisible();
 });

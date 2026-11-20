@@ -200,9 +200,19 @@ export const voidTransaction = (db: IVaultDatabase, id: Id, now = Date.now()) =>
 export const softDeleteTransaction = (db: IVaultDatabase, id: Id, now = Date.now()) =>
   mutateGroup(db, id, (t) => (t.deleted_at !== null ? null : { ...t, deleted_at: now }), now);
 
-/** Restore from Trash. Applies to the whole transfer group. */
+/**
+ * Restore from Trash. Applies to the whole transfer group. Refused while any account of the group is
+ * deleted (restore the account instead): money must never come back into an account nobody can see.
+ */
 export const restoreTransaction = (db: IVaultDatabase, id: Id, now = Date.now()) =>
-  mutateGroup(db, id, (t) => (t.deleted_at === null ? null : { ...t, deleted_at: null }), now);
+  db.transaction(async (tx) => {
+    const row = await tx.get('transactions', id);
+    if (!row) throw new LedgerError('TX_NOT_FOUND');
+    for (const t of await groupOf(tx, row)) {
+      if ((await tx.get('accounts', t.account_id))?.deleted_at !== null) throw new LedgerError('ACCOUNT_DELETED');
+    }
+    return mutateGroup(db, id, (t) => (t.deleted_at === null ? null : { ...t, deleted_at: null }), now);
+  });
 
 /** Post a pending_review transaction (e.g. an SMS capture the user confirmed). */
 export const postPendingTransaction = (db: IVaultDatabase, id: Id, now = Date.now()) =>

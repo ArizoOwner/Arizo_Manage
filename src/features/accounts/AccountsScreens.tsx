@@ -9,7 +9,7 @@ import { ArizoSecurity, isNative } from '../../core/bridge/native';
 import { bankByCode } from '../../core/data/banks';
 import { CURRENCIES, parseMajor, type CurrencyCode } from '../../core/currency/money';
 import { formatDate, formatMoney, localDigits } from '../../core/i18n/format';
-import { reconcileBalance, setArchived } from '../../core/ledger/accounts';
+import { deleteAccount, reconcileBalance, setArchived } from '../../core/ledger/accounts';
 import { computeNetWorth, latestRate } from '../../core/ledger/networth';
 import { ParallaxCard } from '../../core/motion/ParallaxCard';
 import { PrivacyBlur } from '../../core/motion/PrivacyBlur';
@@ -108,6 +108,7 @@ export function AccountDetail() {
   const { request, sheet } = useReauth();
   const [editing, setEditing] = useState(false);
   const [reconciling, setReconciling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const { data } = useVaultQuery(
@@ -243,6 +244,9 @@ export function AccountDetail() {
       <Button variant="secondary" className="text-[13px]" onClick={() => nav(`/accounts/${a.id}/statement`)} data-testid="account-statement">
         {t('statement.open')}
       </Button>
+      <Button variant="ghost" className="text-[13px] text-coral-text" onClick={() => setDeleting(true)} data-testid="account-delete">
+        {t('accounts.delete')}
+      </Button>
       <section className="flex flex-col gap-1">
         {txs.slice(0, 50).map((x) => (
           <div key={x.id} className="flex flex-col">
@@ -254,6 +258,27 @@ export function AccountDetail() {
 
       <Sheet open={editing} onClose={() => setEditing(false)} title={t('accounts.edit')}>
         <AccountForm db={open.db} account={a} onSaved={() => setEditing(false)} />
+      </Sheet>
+      <Sheet open={deleting} onClose={() => setDeleting(false)} title={t('accounts.deleteTitle', { name: a.name })}>
+        <p className="text-[14px] leading-7 text-ink-2">{t('accounts.deleteBody', { n: localDigits(txs.length, lang) })}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" onClick={() => setDeleting(false)}>
+            {t('ledger.cancel')}
+          </Button>
+          <Button
+            variant="danger"
+            data-testid="account-delete-confirm"
+            onClick={() =>
+              // Deleting is a destructive vault change: a fresh PIN (or the 60 s re-auth window) first.
+              request(() => {
+                setDeleting(false);
+                void mutate((db) => deleteAccount(db, a.id)).then(() => nav('/accounts'));
+              })
+            }
+          >
+            {t('accounts.deleteConfirm')}
+          </Button>
+        </div>
       </Sheet>
       <ReconcileSheet open={reconciling} onClose={() => setReconciling(false)} accountId={a.id} currency={a.currency_code} toman={a.currency_code === 'IRR' && irrUnit === 'toman'} />
       {sheet}

@@ -80,7 +80,7 @@ function Tooltip({ x, children }: { x: number; children: ReactNode }) {
 }
 
 /** Monotone cubic (Fritsch–Carlson): the spline never invents a dip or peak between points. */
-function monotonePath(xs: number[], ys: number[]): string {
+export function monotonePath(xs: number[], ys: number[]): string {
   const n = xs.length;
   const dx = xs.slice(1).map((x, k) => x - xs[k]!);
   const m = ys.slice(1).map((y, k) => (y - ys[k]!) / dx[k]!);

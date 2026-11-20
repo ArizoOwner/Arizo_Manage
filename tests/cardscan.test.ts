@@ -55,4 +55,13 @@ describe('card scan parser', () => {
     expect(m.cvv2).toBeNull();
     expect(mergeScans([a]).expiry).toBeNull();
   });
+
+  it('vertical card (Blu Bank layout): the number in 4-digit groups, one group per line', () => {
+    const s = parseCardText('blu\n6219\n8612\n3456\n7898\nCVV2 731\n1406/11');
+    expect(s.number).toBe(SAMAN);
+    expect(s.cvv2).toBe('731');
+    expect(s.expiry).toBe('11/06');
+    // Groups split by other text are not glued into a number.
+    expect(parseCardText('6219\nEXP\n8612 3456 7898').number).toBeNull();
+  });
 });

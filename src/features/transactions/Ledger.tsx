@@ -12,6 +12,7 @@ import { useVaultQuery } from '../../app/useVaultQuery';
 import { startOfCalendarDay, toCalendarDate } from '../../core/calendar/calendar';
 import { formatDate, formatMoney, localDigits } from '../../core/i18n/format';
 import { postPendingTransaction, restoreTransaction, softDeleteTransaction } from '../../core/ledger/ledger';
+import { restoreAccount } from '../../core/ledger/accounts';
 import { PrivacyBlur } from '../../core/motion/PrivacyBlur';
 import { bankByCode } from '../../core/data/banks';
 import { Glyph } from '../../core/ui/glyphs';
@@ -337,6 +338,10 @@ export function Trash() {
   const shown = rows.filter((x) => x.type !== 'transfer_in' || !rows.some((y) => y.transfer_pair_id === x.transfer_pair_id && y.type === 'transfer_out'));
   const byId = new Map((data?.accounts ?? []).map((a) => [a.id, a]));
   const catById = new Map((data?.cats ?? []).map((c) => [c.id, c]));
+  const goneAccounts = (data?.accounts ?? []).filter((a) => a.deleted_at !== null).sort((a, b) => (b.deleted_at ?? 0) - (a.deleted_at ?? 0));
+  const goneIds = new Set(goneAccounts.map((a) => a.id));
+  // A deleted account's rows come back with the account, so they are listed under it, not one by one.
+  const loose = shown.filter((x) => !goneIds.has(x.account_id) && !(x.counterparty_account_id && goneIds.has(x.counterparty_account_id)));
   return (
     <Screen
       title={t('ledger.trash')}
@@ -347,8 +352,22 @@ export function Trash() {
       }
     >
       <p className="text-[13px] text-ink-2">{t('ledger.trashNote')}</p>
-      {shown.length === 0 && <p className="py-10 text-center text-[14px] text-ink-2">{t('ledger.trashEmpty')}</p>}
-      {shown.map((x) => (
+      {shown.length === 0 && goneAccounts.length === 0 && <p className="py-10 text-center text-[14px] text-ink-2">{t('ledger.trashEmpty')}</p>}
+      {goneAccounts.map((a) => (
+        <div key={a.id} className="arizo-card flex items-center gap-3 rounded-2xl border border-hairline p-3" data-testid="trash-account">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-coral/12 text-coral-text">
+            <Icon d={ICONS.trash} className="h-5 w-5" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-[15px] font-semibold">{a.name}</span>
+            <span className="text-[12px] text-ink-2">{t('ledger.trashAccount', { n: localDigits(rows.filter((x) => x.account_id === a.id).length, lang) })}</span>
+          </span>
+          <Button variant="ghost" className="!min-h-11 !px-3 text-[13px] text-emerald-text" onClick={() => void mutate((db) => restoreAccount(db, a.id))} data-testid="trash-account-restore">
+            {t('ledger.restore')}
+          </Button>
+        </div>
+      ))}
+      {loose.map((x) => (
         <div key={x.id} className="flex items-center gap-1" data-testid="trash-row">
           <div className="min-w-0 flex-1">
             <span className="block px-3 text-[11px] text-ink-2">{formatDate(x.occurred_at, cal, lang)}</span>

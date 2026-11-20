@@ -44,25 +44,38 @@ export function installE2eHooks() {
         return { messages: texts.length, median: median(times), max: Math.max(...times) };
       },
       /** Card scanner: draw a synthetic card face, run the real on-device OCR on it, parse the text. */
-      async ocrCard(lines: string[]) {
+      // `vertical`: a portrait card (Blu Bank style) whose lines run sideways in the camera frame, read
+      // the way the scanner reads a portrait guide (upright, then each quarter turn).
+      async ocrCard(lines: string[], vertical = false) {
         const c = document.createElement('canvas');
-        c.width = 1012;
-        c.height = 638;
+        c.width = vertical ? 638 : 1012;
+        c.height = vertical ? 1012 : 638;
         const g = c.getContext('2d')!;
         g.fillStyle = '#1b2a4a';
         g.fillRect(0, 0, c.width, c.height);
         g.fillStyle = '#f4f1ea';
         g.font = 'bold 58px monospace';
-        lines.forEach((l, i) => g.fillText(l, 70, 250 + i * 95));
+        if (vertical) {
+          // Text printed along the card's long edge: rotate the drawing a quarter turn.
+          g.translate(c.width / 2, c.height / 2);
+          g.rotate(-Math.PI / 2);
+          lines.forEach((l, i) => g.fillText(l, -440, -120 + i * 95));
+          g.setTransform(1, 0, 0, 1, 0, 0);
+        } else lines.forEach((l, i) => g.fillText(l, 70, 250 + i * 95));
         const { framePng } = await import('../core/cardscan/frames');
         const { recognize, endOcr } = await import('../core/cardscan/ocrClient');
         const { parseCardText } = await import('../core/cardscan/parseCard');
         const t0 = performance.now();
-        const r = await recognize(await framePng(c));
+        let text = '';
+        for (const turn of vertical ? ([0, 90, -90] as const) : ([0] as const)) {
+          const r = await recognize(await framePng(c, undefined, turn));
+          text += '\n' + r.text;
+          if (parseCardText(r.text).number) break;
+        }
         const ms = performance.now() - t0;
         endOcr();
-        const p = parseCardText(r.text);
-        return { text: r.text, ms, number: p.number, expiry: p.expiry, cvv2: p.cvv2 };
+        const p = parseCardText(text);
+        return { text, ms, number: p.number, expiry: p.expiry, cvv2: p.cvv2 };
       },
     },
   });

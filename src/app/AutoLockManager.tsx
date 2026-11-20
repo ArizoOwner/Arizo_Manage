@@ -4,7 +4,7 @@
 // - Auto-lock: when hidden for longer than the chosen delay ("Immediate" = on hide), or idle in the
 //   foreground for that long, the vault locks and keys are dropped.
 import { useEffect } from 'react';
-import { useVault } from './stores/vault';
+import { HOLD_MAX_MS, useVault } from './stores/vault';
 
 const IDLE_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
 
@@ -22,13 +22,15 @@ export function AutoLockManager() {
       // Foreground idle uses at least 1 minute so "Immediate" does not lock mid-typing.
       idle = window.setTimeout(() => void lock(), Math.max(autoLockMs, 60_000));
     };
+    // A hold (camera scanner open) stretches the background allowance to HOLD_MAX_MS.
+    const allowance = () => (useVault.getState().autoLockHolds > 0 ? Math.max(autoLockMs, HOLD_MAX_MS) : autoLockMs);
     const onHide = () => {
       hiddenAt = Date.now();
       setCurtain(true);
-      if (autoLockMs === 0) void lock();
+      if (allowance() === 0) void lock();
     };
     const onShow = () => {
-      if (hiddenAt && Date.now() - hiddenAt >= autoLockMs) void lock();
+      if (hiddenAt && Date.now() - hiddenAt >= allowance()) void lock();
       hiddenAt = 0;
       setCurtain(false);
       armIdle();

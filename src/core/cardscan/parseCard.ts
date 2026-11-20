@@ -37,7 +37,17 @@ export function normalizeOcr(text: string): string {
 
 /** The card number: a Luhn-valid 16 (or 19/15) digit window inside a run of digits, spaces and dashes. */
 export function findCardNumber(text: string): string | null {
-  const runs = text.match(/\d(?:[\d \-–]{10,40})\d/g) ?? [];
+  const runs: string[] = [...(text.match(/\d(?:[\d \-–]{10,40})\d/g) ?? [])];
+  // Portrait cards (Blu Bank and others) print the number as 4-digit groups, one per line: join every
+  // stretch of consecutive lines that hold only digit groups, so the groups read as one run.
+  const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    let joined = '';
+    for (let j = i; j < lines.length && /^[\d \-–]{2,9}$/.test(lines[j]!); j++) {
+      joined += lines[j]!.replace(/\D/g, '');
+      if (joined.length >= 15) runs.push(joined);
+    }
+  }
   const found: string[] = [];
   for (const r of runs) {
     const d = r.replace(/\D/g, '');
@@ -79,9 +89,12 @@ export function findExpiry(text: string, iranian: boolean): { value: string; jal
   return cands[0] ? { value: cands[0].value, jalali: cands[0].jalali } : null;
 }
 
-/** CVV2: 3 or 4 digits right after its label ("CVV2", "CVC", "کد امنیتی"). Never guessed without a label. */
+/**
+ * CVV2: 3 or 4 digits right after its label ("CVV2", "CVC", "کد امنیتی"). Never guessed without a label.
+ * OCR drops or doubles letters of the label ("cv2", "Ccvv2", "CW2"), so the label is matched loosely.
+ */
 export function findCvv2(text: string): string | null {
-  const m = text.match(/(?:CVV\s*2?|CVC\s*2?|CW2|کد\s*امنیتی)\s*[:：]?\s*(\d{3,4})(?!\d)/i);
+  const m = text.match(/(?:C{1,2}[VW]{1,2}\s*2?|CVC\s*2?|کد\s*امنیتی)\s*[:：]?\s*(\d{3,4})(?!\d)/i);
   return m ? m[1]! : null;
 }
 

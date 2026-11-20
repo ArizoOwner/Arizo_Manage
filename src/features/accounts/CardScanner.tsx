@@ -25,6 +25,7 @@ export interface ScanResult {
 }
 
 type Phase = 'starting' | 'scanning' | 'found' | 'denied' | 'unsupported';
+type Shape = 'landscape' | 'portrait';
 const MAX_FRAMES = 14;
 
 export function CardScanner({ onClose, onResult }: { onClose: () => void; onResult: (r: ScanResult) => void }) {
@@ -35,9 +36,15 @@ export function CardScanner({ onClose, onResult }: { onClose: () => void; onResu
   const [phase, setPhase] = useState<Phase>('starting');
   const [result, setResult] = useState<(CardScan & { confident: boolean }) | null>(null);
   const [frames, setFrames] = useState(0);
+  const [shape, setShape] = useState<Shape>('landscape');
+  const shapeRef = useRef<Shape>('landscape');
+  shapeRef.current = shape;
   // Close when the vault locks while the sheet is open. Onboarding runs before the vault is "open" in the
   // store, so only an open -> locked change counts, not the state at mount.
   useEffect(() => useVault.subscribe((s, prev) => void (prev.open && !s.open && onClose())), [onClose]);
+  // The camera permission dialog and the camera start put the Android activity in the background for a
+  // moment; the auto-lock must not treat that as leaving the app while this sheet is open.
+  useEffect(() => useVault.getState().holdAutoLock(), []);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -61,14 +68,24 @@ export function CardScanner({ onClose, onResult }: { onClose: () => void; onResu
           continue;
         }
         n++;
-        // The guide is 86 % of the frame at the ID-1 card ratio (85.6 × 54 mm), centred.
-        const w = Math.round(Math.min(v.videoWidth, v.videoHeight * 1.586) * 0.86);
-        const h = Math.round(w / 1.586);
+        // The guide is the ID-1 card ratio (85.6 × 54 mm), centred: landscape, or portrait for vertical
+        // designs. A portrait frame is read twice, turned each way, because the text may run either way.
+        const portrait = shapeRef.current === 'portrait';
+        const ratio = portrait ? 1 / 1.586 : 1.586;
+        const w = Math.round(Math.min(v.videoWidth, v.videoHeight * ratio) * (portrait ? 0.92 : 0.86));
+        const h = Math.round(w / ratio);
         const crop = { x: Math.round((v.videoWidth - w) / 2), y: Math.round((v.videoHeight - h) / 2), w, h };
         try {
-          const r = await recognize(await framePng(v, crop));
+          const turns: (0 | 90 | -90)[] = portrait ? [0, 90, -90] : [0];
+          let text = '';
+          for (const turn of turns) {
+            const r = await recognize(await framePng(v, crop, turn));
+            if (stop) break;
+            text += '\n' + r.text;
+            if (parseCardText(r.text).number) break;
+          }
           if (stop) break;
-          reads.push(parseCardText(r.text));
+          reads.push(parseCardText(text));
           setFrames(reads.length);
           const m = mergeScans(reads);
           if (m.number) {
@@ -115,7 +132,7 @@ export function CardScanner({ onClose, onResult }: { onClose: () => void; onResu
         <video ref={video} playsInline muted className="absolute inset-0 h-full w-full object-cover" aria-hidden="true" />
         {/* Guide: everything outside the card window is dimmed; gold corners and a sweeping scan line. */}
         <div aria-hidden="true" className="absolute inset-0 grid place-items-center">
-          <div className="relative aspect-[1.586] w-[86%] max-w-[34rem] rounded-[22px] shadow-[0_0_0_200vmax_rgba(0,0,0,0.62)]">
+          <div className={`relative rounded-[22px] shadow-[0_0_0_200vmax_rgba(0,0,0,0.62)] transition-[width,aspect-ratio] duration-300 ${shape === 'portrait' ? 'aspect-[0.63] w-[58%] max-w-[22rem]' : 'aspect-[1.586] w-[86%] max-w-[34rem]'}`}>
             {corners.map((c) => (
               <span key={c} className={`absolute h-10 w-10 border-gold-mark ${c}`} />
             ))}
@@ -143,6 +160,22 @@ export function CardScanner({ onClose, onResult }: { onClose: () => void; onResu
               <path d="M6 6l12 12M18 6 6 18" />
             </svg>
           </button>
+        </div>
+        {/* Card shape: most cards are landscape; Blu Bank and other vertical designs need the portrait guide. */}
+        <div role="group" aria-label={t('scan.shape')} className="absolute inset-x-0 bottom-16 flex justify-center gap-2">
+          {(['landscape', 'portrait'] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={shape === k}
+              onClick={() => setShape(k)}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-[13px] font-semibold backdrop-blur ${shape === k ? 'bg-white text-black' : 'bg-black/50 text-white'}`}
+              data-testid={`scan-shape-${k}`}
+            >
+              <span aria-hidden="true" className={`inline-block rounded-[3px] border-2 border-current ${k === 'portrait' ? 'h-4 w-2.5' : 'h-2.5 w-4'}`} />
+              {t(`scan.${k}`)}
+            </button>
+          ))}
         </div>
         <p role="status" className="absolute inset-x-6 bottom-6 text-center text-[13px] font-semibold text-white/90">
           {phase === 'starting' && t('scan.starting')}

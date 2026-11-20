@@ -26,6 +26,7 @@ import { Card, Icon, IconButton, ICONS } from '../../core/ui/ui';
 import type { Transaction } from '../../core/storage/schema';
 import { TxRow } from '../transactions/TxRow';
 import { BudgetList, InsightList, useAnalytics, useNames } from '../analytics/Analytics';
+import { monotonePath } from '../analytics/charts';
 import { periodAt } from '../../core/analytics/periods';
 import { backupDue, backupState } from '../../core/backup/service';
 
@@ -45,7 +46,12 @@ function sparkSeries(txs: readonly Transaction[], current: bigint, n: number, to
   return out.reverse();
 }
 
-function Sparkline({ values, rtl }: { values: bigint[]; rtl: boolean }) {
+/**
+ * 30-day net worth line for the hero. A smooth monotone curve (the analytics chart's own spline) over a
+ * padded scale, so one rent payment reads as a step, not a cliff to the floor; a dashed line marks where
+ * the month started, a pulsing dot marks today, and the edges carry the start and end labels.
+ */
+function Sparkline({ values, rtl, startLabel, endLabel }: { values: bigint[]; rtl: boolean; startLabel: string; endLabel: string }) {
   const reduce = useReducedMotion();
   const hidden = usePrivacy((s) => s.hidden);
   if (values.length < 2) return null;
@@ -55,24 +61,46 @@ function Sparkline({ values, rtl }: { values: bigint[]; rtl: boolean }) {
     if (v < lo) lo = v;
     if (v > hi) hi = v;
   }
-  const span = Number(hi - lo) || 1;
-  const W = 300;
-  const H = 64;
-  const pts = values.map((v, k) => [(k / (values.length - 1)) * W, 6 + (H - 12) * (1 - Number(v - lo) / span)] as const);
-  const d = pts.map(([x, y], k) => `${k ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const W = 320;
+  const H = 84;
+  // Headroom: the range never fills the box, and a flat month stays a calm line in the middle.
+  const range = Number(hi - lo);
+  const mid = Number(lo) + range / 2;
+  const half = Math.max(range * 0.65, Math.abs(mid) * 0.02, 1);
+  const y = (v: bigint) => H / 2 - ((Number(v) - mid) / half) * (H / 2 - 6);
+  const xs = values.map((_, k) => (k / (values.length - 1)) * W);
+  const ys = values.map(y);
+  const d = monotonePath(xs, ys);
   const up = values.at(-1)! >= values[0]!;
   const tone = up ? 'var(--arizo-accent-primary)' : 'var(--arizo-accent-outflow)';
+  const endX = rtl ? 0 : 100;
+  const endY = (ys.at(-1)! / H) * 100;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true" className={`block h-16 w-full ${rtl ? '-scale-x-100' : ''} ${hidden ? 'blur-[8px]' : ''}`} data-testid="dash-spark">
-      <defs>
-        <linearGradient id="dashSparkFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={tone} stopOpacity="0.32" />
-          <stop offset="100%" stopColor={tone} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${d} L${W},${H} L0,${H} Z`} fill="url(#dashSparkFill)" className={reduce ? '' : 'arizo-fade'} />
-      <path d={d} fill="none" stroke={tone} strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" pathLength={1} className={reduce ? '' : 'arizo-draw'} />
-    </svg>
+    <div className="relative" data-testid="dash-spark">
+      <div className={`relative h-[84px] ${hidden ? 'blur-[8px]' : ''}`} aria-hidden="true">
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={`absolute inset-0 block h-full w-full overflow-visible ${rtl ? '-scale-x-100' : ''}`}>
+          <defs>
+            <linearGradient id="dashSparkFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={tone} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={tone} stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="dashSparkLine" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={tone} stopOpacity="0.35" />
+              <stop offset="100%" stopColor={tone} />
+            </linearGradient>
+          </defs>
+          <line x1="0" x2={W} y1={ys[0]} y2={ys[0]} stroke="var(--arizo-text-secondary)" strokeOpacity="0.45" strokeWidth="1" strokeDasharray="4 5" vectorEffect="non-scaling-stroke" />
+          <path d={`${d} L${W},${H} L0,${H} Z`} fill="url(#dashSparkFill)" className={reduce ? '' : 'arizo-fade'} />
+          <path d={d} fill="none" stroke="url(#dashSparkLine)" strokeWidth="2.4" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" pathLength={1} className={reduce ? '' : 'arizo-draw'} />
+        </svg>
+        <span className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface-1" style={{ left: `${endX}%`, top: `${endY}%`, background: tone }} />
+        {!reduce && <span className="arizo-pulse absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${endX}%`, top: `${endY}%`, background: tone, opacity: 0.5 }} />}
+      </div>
+      <div className="mt-1 flex justify-between text-[10.5px] text-ink-2" aria-hidden="true">
+        <span>{startLabel}</span>
+        <span className="font-semibold">{endLabel}</span>
+      </div>
+    </div>
   );
 }
 
@@ -232,7 +260,7 @@ export function Dashboard() {
           </PrivacyBlur>
         )}
         {view && view.nw.missingRates.length > 0 && <p className="relative mt-1 text-[12px] text-amber-text">{t('dash.missingRates', { c: view.nw.missingRates.join('، ') })}</p>}
-        <div className="relative -mx-1 mt-2">{view && <Sparkline values={view.spark} rtl={rtl} />}</div>
+        <div className="relative mt-3">{view && <Sparkline values={view.spark} rtl={rtl} startLabel={formatDate(Date.now() - 29 * DAY, cal, lang)} endLabel={t('dash.today')} />}</div>
         <div className="relative mt-3 grid grid-cols-2 gap-3">
           {(
             [

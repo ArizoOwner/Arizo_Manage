@@ -1,10 +1,10 @@
-// Account repository: validation (Luhn, Sheba), balance-safe edits, archive, reconciliation.
+// Account repository: validation (Luhn, Sheba), balance-safe edits, archive, delete, reconciliation.
 import type { CurrencyCode } from '../currency/money';
 import type { IVaultDatabase } from '../storage/IVaultDatabase';
 import type { Account, AccountType, CardFinish } from '../storage/schema';
 import { onlyDigits } from '../utils/digits';
 import { isValidCardNumber, isValidSheba, normalizeSheba } from '../validators';
-import { createTransaction, LedgerError, newAccount } from './ledger';
+import { createTransaction, LedgerError, newAccount, restoreTransaction, softDeleteTransaction } from './ledger';
 
 export interface AccountInput {
   name: string;
@@ -97,6 +97,60 @@ export function setArchived(db: IVaultDatabase, id: string, archived: boolean, n
     const a = await tx.get('accounts', id);
     if (!a) throw new LedgerError('ACCOUNT_NOT_FOUND');
     await tx.put('accounts', { ...a, is_archived: archived, updated_at: now });
+  });
+}
+
+/**
+ * Delete an account (soft, like every row): its transactions go to the Trash with it, a transfer's other
+ * half goes too (so the other account's balance stays right), and recurring rules on the account stop.
+ * Cheques, loans, debts and goals that named the account keep their history and simply lose the link.
+ * One staged transaction: all of it lands, or none. Returns how many transactions moved to the Trash.
+ */
+export function deleteAccount(db: IVaultDatabase, id: string, now = Date.now()): Promise<number> {
+  return db.transaction(async (tx) => {
+    const a = await tx.get('accounts', id);
+    if (!a || a.deleted_at !== null) throw new LedgerError('ACCOUNT_NOT_FOUND');
+    let moved = 0;
+    for (const t of await tx.find('transactions', { account_id: id })) {
+      if (t.deleted_at !== null) continue;
+      moved += (await softDeleteTransaction(db, t.id, now)).length;
+    }
+    for (const r of await tx.find('recurring_rules', { account_id: id })) {
+      if (r.deleted_at === null) await tx.put('recurring_rules', { ...r, is_active: false, deleted_at: now, updated_at: now });
+    }
+    for (const store of ['cheques', 'loans', 'debts_receivables'] as const) {
+      for (const row of await tx.find(store)) {
+        if (row.account_id === id) await tx.put(store, { ...row, account_id: null, updated_at: now });
+      }
+    }
+    for (const g of await tx.find('savings_goals')) {
+      if (g.linked_account_id === id) await tx.put('savings_goals', { ...g, linked_account_id: null, updated_at: now });
+    }
+    await tx.put('accounts', { ...(await tx.get('accounts', id))!, deleted_at: now, updated_at: now });
+    return moved;
+  });
+}
+
+/**
+ * Undo `deleteAccount` from the Trash: the account comes back with exactly the transactions (and
+ * transfer halves, and recurring rules) that were removed with it, recognised by the same deletion
+ * time. Rows trashed separately before stay in the Trash. Unlinked cheques/loans/debts stay unlinked.
+ */
+export function restoreAccount(db: IVaultDatabase, id: string, now = Date.now()): Promise<number> {
+  return db.transaction(async (tx) => {
+    const a = await tx.get('accounts', id);
+    if (!a || a.deleted_at === null) throw new LedgerError('ACCOUNT_NOT_FOUND');
+    const at = a.deleted_at;
+    await tx.put('accounts', { ...a, deleted_at: null, updated_at: now });
+    let back = 0;
+    for (const t of await tx.find('transactions', { account_id: id })) {
+      const cur = await tx.get('transactions', t.id);
+      if (cur?.deleted_at === at) back += (await restoreTransaction(db, t.id, now)).length;
+    }
+    for (const r of await tx.find('recurring_rules', { account_id: id })) {
+      if (r.deleted_at === at) await tx.put('recurring_rules', { ...r, is_active: true, deleted_at: null, updated_at: now });
+    }
+    return back;
   });
 }
 

@@ -1,8 +1,8 @@
 // Phase 3 gate: repository, split and recurring logic, net worth, demo seeder — on both adapters.
 import { describe, expect, it } from 'vitest';
 import { ADAPTERS } from './helpers/vaults';
-import { accountToInput, createAccount, reconcileBalance, setArchived, updateAccount, validateAccount, type AccountInput } from '../src/core/ledger/accounts';
-import { createTransaction, setSplits, verifyLedger } from '../src/core/ledger/ledger';
+import { accountToInput, createAccount, deleteAccount, reconcileBalance, restoreAccount, setArchived, updateAccount, validateAccount, type AccountInput } from '../src/core/ledger/accounts';
+import { createTransaction, createTransfer, restoreTransaction, setSplits, verifyLedger } from '../src/core/ledger/ledger';
 import { cashflowInBase, computeNetWorth, convertMinor } from '../src/core/ledger/networth';
 import { dayOfPeriodFor, MAX_CATCHUP, nextOccurrence, payRecurringNow, runDueRecurring } from '../src/core/ledger/recurring';
 import { seedDemoData } from '../src/core/utils/demoData';
@@ -124,6 +124,36 @@ describe.each(ADAPTERS)('Phase 3 repositories — %s', (_n, make) => {
     expect(computeNetWorth(await db.find('accounts'), []).totalMinor).toBe(750_000n);
     await setArchived(db, a.id, true);
     expect(computeNetWorth(await db.find('accounts'), []).totalMinor).toBe(0n);
+  });
+
+  it('delete account: its rows go to the Trash with transfer halves, the other balance is restored, links drop', async () => {
+    const db = await make();
+    const a = await createAccount(db, input({ name: 'A', card_number: '' }));
+    const b = await createAccount(db, input({ name: 'B', card_number: '', initial_balance_minor: 500_000n }));
+    await createTransaction(db, { account_id: a.id, type: 'expense', amount_minor: 100_000n, occurred_at: 1 });
+    await createTransfer(db, { from_account_id: a.id, to_account_id: b.id, amount_minor: 200_000n, occurred_at: 2 });
+    await createTransaction(db, { account_id: b.id, type: 'income', amount_minor: 50_000n, occurred_at: 3 });
+    expect((await db.get('accounts', b.id))!.current_balance_minor).toBe(750_000n);
+
+    expect(await deleteAccount(db, a.id)).toBe(3); // the expense + both halves of the transfer
+    expect((await db.get('accounts', a.id))!.deleted_at).not.toBeNull();
+    // B loses only the transfer it received; its own income stays.
+    expect((await db.get('accounts', b.id))!.current_balance_minor).toBe(550_000n);
+    expect((await db.find('transactions')).filter((t) => t.deleted_at === null).map((t) => t.account_id)).toEqual([b.id]);
+    expect(computeNetWorth(await db.find('accounts'), []).totalMinor).toBe(550_000n);
+    const report = await verifyLedger(db);
+    expect(report.drift).toEqual([]);
+    expect(report.brokenPairs).toEqual([]);
+    await expect(createTransaction(db, { account_id: a.id, type: 'expense', amount_minor: 1n, occurred_at: 4 })).rejects.toThrow('ACCOUNT_NOT_FOUND');
+    await expect(deleteAccount(db, a.id)).rejects.toThrow('ACCOUNT_NOT_FOUND');
+
+    // A row of a deleted account cannot come back alone; restoring the account brings back all of it.
+    const trashed = (await db.find('transactions')).find((t) => t.account_id === a.id && t.type === 'expense')!;
+    await expect(restoreTransaction(db, trashed.id)).rejects.toThrow('ACCOUNT_DELETED');
+    expect(await restoreAccount(db, a.id)).toBe(3);
+    expect((await db.get('accounts', a.id))!.current_balance_minor).toBe(700_000n);
+    expect((await db.get('accounts', b.id))!.current_balance_minor).toBe(750_000n);
+    expect((await verifyLedger(db)).drift).toEqual([]);
   });
 
   it('split transactions keep Σ = parent and survive the integrity check', async () => {

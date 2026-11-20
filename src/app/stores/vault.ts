@@ -35,6 +35,8 @@ export interface VaultState {
   reauthUntil: number;
   /** Set true by the privacy curtain while the app is backgrounded. */
   curtain: boolean;
+  /** Open holds (camera scanner): a short trip to the background does not lock. See holdAutoLock. */
+  autoLockHolds: number;
 
   db(): IVaultDatabase;
   bump(): void;
@@ -47,8 +49,17 @@ export interface VaultState {
   setAutoLock(ms: AutoLock): void;
   setWipeOnFailures(on: boolean): void;
   setCurtain(on: boolean): void;
+  /**
+   * While held, hiding the app locks only after HOLD_MAX_MS instead of the user's delay: Android pauses the
+   * activity for the camera permission dialog and the camera start. The curtain still covers the screen.
+   * Returns the release function.
+   */
+  holdAutoLock(): () => void;
   refreshInitialized(): void;
 }
+
+/** Longest background stay that a hold tolerates before the vault locks anyway. */
+export const HOLD_MAX_MS = 120_000;
 
 export const useVault = create<VaultState>((set, get) => ({
   open: null,
@@ -59,6 +70,7 @@ export const useVault = create<VaultState>((set, get) => ({
   rev: 0,
   reauthUntil: 0,
   curtain: false,
+  autoLockHolds: 0,
 
   db() {
     const o = get().open;
@@ -130,6 +142,15 @@ export const useVault = create<VaultState>((set, get) => ({
     set({ wipeOnFailures: on });
   },
   setCurtain: (on) => set({ curtain: on }),
+  holdAutoLock() {
+    set((s) => ({ autoLockHolds: s.autoLockHolds + 1 }));
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      set((s) => ({ autoLockHolds: Math.max(0, s.autoLockHolds - 1) }));
+    };
+  },
   refreshInitialized: () => set({ initialized: vaultService.isInitialized() }),
 }));
 

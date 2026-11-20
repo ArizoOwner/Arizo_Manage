@@ -14,6 +14,7 @@ import { DebtsScreen } from '../features/obligations/Debts';
 import { SmsCenter } from '../features/sms-intelligence/SmsCenter';
 import { BusinessProfileScreen, CatalogScreen, InvoiceDetail, InvoiceEditor, InvoicesScreen } from '../features/invoices/InvoiceStudio';
 import { ExportScreen, ImportScreen, StatementScreen } from '../features/invoices/LedgerTools';
+import { BackupScreen } from '../features/backup/BackupScreen';
 
 // Hash routing: required for static zero-server hosting. `#/sms-ingest?d=` is consumed and wiped in
 // main.tsx (captureIngestFragment) before the router ever sees it.
@@ -53,6 +54,7 @@ export const router = createHashRouter([
       { path: 'invoices/:id/edit', element: <InvoiceEditor /> },
       { path: 'import', element: <ImportScreen /> },
       { path: 'export', element: <ExportScreen /> },
+      { path: 'backup', element: <BackupScreen /> },
       { path: '*', element: <Dashboard /> },
     ],
   },

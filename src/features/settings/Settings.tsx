@@ -11,6 +11,9 @@ import { seedDemoData } from '../../core/utils/demoData';
 import { Button, Card, Field, Icon, IconButton, ICONS, Screen, Segmented, Sheet, Toggle } from '../../core/ui/ui';
 import { isWeakPin, PinPad } from '../vault-lock/PinPad';
 import { useReauth } from '../security/ReauthSheet';
+import { useVaultQuery } from '../../app/useVaultQuery';
+import { backupState } from '../../core/backup/service';
+import { formatDate } from '../../core/i18n/format';
 
 function Row({ label, value, ok }: { label: string; value: string; ok: boolean }) {
   return (
@@ -33,6 +36,7 @@ export function SettingsScreen() {
   const [sheetOpen, setSheetOpen] = useState<'pin' | 'decoy' | 'wipe' | 'bio' | null>(null);
   const isDecoy = v.open?.kind === 'decoy';
   const web = vaultService.platform() === 'web';
+  const lastBackup = useVaultQuery((db) => backupState(db)).data?.last_backup_at ?? null;
 
   useEffect(() => {
     void navigator.storage?.persisted?.().then(setPersisted, () => setPersisted(null));
@@ -65,7 +69,9 @@ export function SettingsScreen() {
         <Row label={t('settings.airgap')} value={t('settings.airgapOn')} ok />
         <Row label={t('settings.biometric')} value={bio.enrolled ? '✓' : '—'} ok={bio.enrolled} />
         {web && <Row label={t('settings.storage')} value={persisted ? t('settings.storageOk') : t('settings.storageAsk')} ok={!!persisted} />}
-        <Row label={t('settings.lastBackup')} value={t('settings.never')} ok={false} />
+        <button type="button" onClick={() => nav('/backup')} className="text-start" data-testid="settings-backup">
+          <Row label={t('settings.lastBackup')} value={lastBackup ? formatDate(lastBackup, s.calendar, s.lang, { withYear: true }) : t('settings.never')} ok={lastBackup !== null} />
+        </button>
       </Card>
 
       <Card className="flex flex-col gap-3">

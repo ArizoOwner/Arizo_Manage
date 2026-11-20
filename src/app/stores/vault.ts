@@ -1,6 +1,8 @@
 // Open-vault session state. The DB handle and keys live only in memory and are dropped on lock.
 // `rev` bumps on every write so screens re-query; the DB is the single source of truth.
 import { create } from 'zustand';
+import { maybeAutoSnapshot } from '../../core/backup/service';
+import { workerEngine } from '../../core/backup/engine';
 import type { IVaultDatabase } from '../../core/storage/IVaultDatabase';
 import { vaultService, type OpenVault } from '../../core/security/vaultService';
 import { LOCKOUT_INITIAL, registerFailure, registerSuccess, remainingLockMs, type LockoutState } from '../../core/security/lockout';
@@ -102,6 +104,9 @@ export const useVault = create<VaultState>((set, get) => ({
     if (open.kind === 'main') await import('../../core/obligations/sync').then((m) => m.syncObligations(open.db)).catch(() => {});
     set({ open, lockout: s, initialized: true, reauthUntil: Date.now() + 60_000, rev: get().rev + 1 });
     // Captured SMS (Android sealed queue, iOS Shortcuts hand-off) are processed only once unlocked.
+    // Rolling encrypted auto-snapshot (at most one a day), main vault only, off the unlock path.
+    if (open.kind === 'main')
+      void maybeAutoSnapshot(open.db, { engine: workerEngine, platform: vaultService.platform() }).catch(() => {});
     void import('../../features/sms-intelligence/intake').then(async (m) => {
       await m.flushHeldFragment();
       await m.drainNativeQueue();

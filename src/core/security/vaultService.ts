@@ -4,6 +4,7 @@
 import { terminateSmsWorker } from '../sms/smsClient';
 import { terminateAnalyticsWorker } from '../analytics/analyticsClient';
 import { terminateXlsxWorker } from '../exports/xlsxClient';
+import { terminateBackupWorkers } from '../backup/engine';
 import { fromB64, randomBytes, toB64, zeroize } from '../crypto/bytes';
 import { cryptoClient } from '../crypto/cryptoClient';
 import type { Keyring, SlotKind } from '../crypto/keyring';
@@ -56,6 +57,11 @@ export const vaultService = {
   /** Tests only: cheaper Argon2 so E2E runs in seconds. Production always uses ARGON2_DEFAULT. */
   useArgonParamsForTesting(p: Argon2Params) {
     params = p;
+  },
+
+  /** Argon2 cost for new .arizo files (the E2E build lowers it like the PIN cost). */
+  backupArgonParams(): Argon2Params {
+    return params;
   },
 
   isInitialized(): boolean {
@@ -219,6 +225,7 @@ export const vaultService = {
     terminateSmsWorker();
     terminateAnalyticsWorker();
     terminateXlsxWorker();
+    terminateBackupWorkers();
   },
 
   /** PIN change for the main vault. Resolves false on a wrong old PIN. A passkey slot stays valid (same DEK). */
@@ -263,5 +270,6 @@ export const vaultService = {
     cryptoClient.terminate();
     terminateAnalyticsWorker();
     terminateXlsxWorker();
+    terminateBackupWorkers();
   },
 };

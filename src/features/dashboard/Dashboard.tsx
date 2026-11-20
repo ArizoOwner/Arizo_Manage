@@ -20,6 +20,7 @@ import { Card, Icon, IconButton, ICONS, Screen } from '../../core/ui/ui';
 import { TxRow } from '../transactions/TxRow';
 import { BudgetList, InsightList, useAnalytics, useNames } from '../analytics/Analytics';
 import { periodAt } from '../../core/analytics/periods';
+import { backupDue, backupState } from '../../core/backup/service';
 
 
 export function Dashboard() {
@@ -65,6 +66,8 @@ export function Dashboard() {
     };
   }, [data, cal]);
 
+  const isMain = useVault((st) => st.open?.kind === 'main');
+  const due = useVaultQuery(async (db) => backupDue(await backupState(db), (await db.count('transactions')) > 0)).data ?? false;
   const p = periodAt(Date.now(), cal);
   const { report } = useAnalytics(cal, p.y, p.m);
   const names = useNames(data?.cats, data?.accounts);
@@ -91,6 +94,12 @@ export function Dashboard() {
       {view && view.pending > 0 && (
         <button type="button" onClick={() => nav('/sms')} data-testid="pending-badge" className="min-h-11 self-start rounded-full bg-surface-2 px-4 text-[13px] font-semibold text-amber-text">
           {t('dash.pendingReview', { n: view.pending })}
+        </button>
+      )}
+
+      {due && isMain && (
+        <button type="button" onClick={() => nav('/backup')} data-testid="backup-due" className="min-h-11 self-start rounded-full bg-surface-2 px-4 text-[13px] font-semibold text-amber-text">
+          {t('backup.due')}
         </button>
       )}
 

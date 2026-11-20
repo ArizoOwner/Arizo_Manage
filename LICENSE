@@ -1,0 +1,124 @@
+Arizo Manage — Proprietary Source-Available License
+Version 1.0, November 2026
+
+Copyright (c) 2026 AmirHossein Tighi (Arizo). All rights reserved.
+
+"Arizo", "Arizo Manage", "آریزو" and "آریزو منیجر", and the Arizo logo, are
+trademarks of AmirHossein Tighi (Arizo).
+
+A Persian translation is in LICENSE.fa.md. If the two texts differ, this
+English text governs.
+
+1. DEFINITIONS
+
+   "Software" means the source code, object code, build scripts, native
+   Android code, documentation, designs, icons, images, animations, texts,
+   translations, data files (including bank templates and SMS test vectors)
+   and every other file in this repository, and any part, copy, modification
+   or derivative of them.
+
+   "Owner" means AmirHossein Tighi, trading as Arizo.
+
+   "You" means any person or entity that accesses the Software.
+
+2. OWNERSHIP
+
+   The Software is protected by copyright and other intellectual property
+   laws and treaties. The Owner keeps all right, title and interest in the
+   Software. Making the source code visible to the public does not place it
+   in the public domain and does not grant any licence except as written in
+   Section 3. Every right not expressly granted is reserved.
+
+3. WHAT YOU MAY DO
+
+   Without asking, you may only:
+
+   (a) view and read the Software on the website where the Owner publishes
+       it, and use the "fork" function that the hosting service provides to
+       its users, to the extent its terms of service require; and
+
+   (b) download one copy, build it and run it on devices you personally own,
+       for your own private, non-commercial evaluation and personal use; and
+
+   (c) report security problems as described in SECURITY.md.
+
+   This permission is personal, non-exclusive, non-transferable,
+   non-sublicensable, free of charge, and revocable at any time.
+
+4. WHAT YOU MAY NOT DO
+
+   Unless the Owner has given you written permission in advance, you may
+   not, in whole or in part:
+
+   (a) copy, reproduce or mirror the Software beyond Section 3;
+   (b) modify, translate, adapt or create derivative works of it, or merge
+       it into other software;
+   (c) distribute, publish, sublicense, sell, rent, lease, lend, host or make
+       it available to others, including as an APK, a web app, a PWA, an app
+       store listing or a hosted service;
+   (d) use it, or any build of it, for any commercial purpose or to provide
+       services to third parties;
+   (e) remove, change or hide any copyright, trademark, licence or
+       attribution notice;
+   (f) use the Owner's names, trademarks or logo, or publish a modified build
+       under them or under a confusingly similar name;
+   (g) re-sign a build with another key, or present a build as official when
+       it was not released by the Owner;
+   (h) use the Software, or any part of it, to train, fine-tune or evaluate
+       machine-learning or AI models, or to build datasets;
+   (i) bypass, disable or weaken its security controls in a build you
+       distribute to anyone else.
+
+5. CONTRIBUTIONS
+
+   The Owner does not accept outside contributions unless agreed in writing.
+   If you nevertheless send code, text, designs or ideas (for example in an
+   issue or a pull request), you grant the Owner a perpetual, worldwide,
+   irrevocable, royalty-free right to use them for any purpose, and you
+   confirm you have the right to grant it.
+
+6. THIRD-PARTY COMPONENTS
+
+   The Software includes or depends on third-party components (for example
+   fonts under the SIL Open Font License and libraries under the MIT, Apache
+   2.0, BSD or similar licences). Those components stay under their own
+   licences, listed in THIRD_PARTY_NOTICES.md and in public/fonts/. This
+   licence does not restrict any right those licences give you in those
+   components.
+
+7. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+   PURPOSE, ACCURACY AND NON-INFRINGEMENT. The Software is a personal finance
+   tool and not financial, tax, accounting or legal advice. You are solely
+   responsible for your data, your backups, your PIN, passphrase and Recovery
+   Key. Data encrypted by the Software cannot be recovered by the Owner if
+   these secrets are lost.
+
+8. LIMITATION OF LIABILITY
+
+   TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE OWNER SHALL NOT BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL OR EXEMPLARY
+   DAMAGES, INCLUDING LOSS OF DATA, MONEY, PROFITS OR BUSINESS, ARISING FROM
+   THE USE OF OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
+   POSSIBILITY OF SUCH DAMAGES.
+
+9. TERMINATION
+
+   Your permission under Section 3 ends automatically, without notice, if you
+   break any term of this licence, or when the Owner revokes it. When it ends
+   you must stop using the Software and delete every copy you hold. Sections
+   2, 4, 5, 7, 8, 9 and 10 survive termination.
+
+10. GENERAL
+
+   Breach of this licence may lead to civil and criminal claims under the
+   applicable copyright laws, including the Iranian Law on the Protection of
+   the Rights of Creators of Computer Software (1379 SH / 2000) and the law of
+   the country where the breach happens. If any part of this licence is held
+   unenforceable, the rest stays in effect. Failure to enforce a term is not
+   a waiver of it.
+
+   For permissions, commercial licences or questions, contact the Owner
+   through https://github.com/ArizoOwner or https://arizoteam.ir.

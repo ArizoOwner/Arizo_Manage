@@ -1,6 +1,9 @@
 {
   "name": "arizo-manage",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "AmirHossein Tighi (Arizo)",
+  "copyright": "Copyright (c) 2026 AmirHossein Tighi (Arizo). All rights reserved.",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

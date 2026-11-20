@@ -95,6 +95,14 @@ Toolchain: Node 24, JDK 21, Android SDK. More in [docs/architecture.md](docs/arc
 
 All planned phases are built and pass their tests. The native parts (SMS capture, SQLCipher, biometrics, printing) compile in debug and R8 release builds but **have not yet been run on a real phone, printer or iPhone**. Treat it as a preview until that is done.
 
+## License and copyright
+
+**Copyright © 2026 AmirHossein Tighi (Arizo). All rights reserved.**
+
+This is **proprietary, source-available** software, not open source. You may read the code and run a build on your own devices for personal, non-commercial use. Copying, modifying, redistributing, publishing builds, commercial use, re-branding and using the code to train AI models are not allowed without written permission. "Arizo" and "Arizo Manage" are trademarks.
+
+[LICENSE](LICENSE) (governing) · [LICENSE.fa.md](LICENSE.fa.md) (Persian) · [NOTICE](NOTICE) · [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) · [SECURITY.md](SECURITY.md)
+
 <div align="center">
-<sub>Made by <b>Arizo</b> · no license chosen yet, all rights reserved</sub>
+<sub>Made by <b>Arizo</b> · © 2026 AmirHossein Tighi · all rights reserved</sub>
 </div>

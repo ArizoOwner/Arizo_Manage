@@ -1,5 +1,5 @@
 // Locale-aware display of money and dates. Money input is always bigint minor units.
-import { formatMinor, type CurrencyCode } from '../currency/money';
+import { formatMinor, MINOR_DIGITS, type CurrencyCode } from '../currency/money';
 import { toPersianDigits } from '../utils/digits';
 import { DEFAULT_TZ, monthName, toCalendarDate, type CalendarKind } from '../calendar/calendar';
 
@@ -49,4 +49,24 @@ export const localDigits = (s: string | number, lang: Lang): string => (lang ===
 export function formatDate(ms: number, cal: CalendarKind, lang: Lang, opts: { withYear?: boolean; tz?: string } = {}): string {
   const d = toCalendarDate(ms, cal, opts.tz ?? DEFAULT_TZ);
   return localDigits(`${d.d} ${monthName(cal, d.m, lang)}${opts.withYear === false ? '' : ` ${d.y}`}`, lang);
+}
+
+/**
+ * Short axis/legend label in the display unit (Toman view divides IRR by 10): 12.5M / ۱۲٫۵ میلیون.
+ * Display only: the float never feeds back into money math.
+ */
+export function compactMoney(minor: bigint, currency: CurrencyCode, lang: Lang, irrUnit: IrrUnit = 'toman'): string {
+  const major = currency === 'IRR' ? (irrUnit === 'toman' ? minor / 10n : minor) : minor / 10n ** BigInt(MINOR_DIGITS[currency]);
+  const neg = major < 0n;
+  const abs = Number(neg ? -major : major);
+  const steps: [number, string, string][] = [
+    [1e12, 'T', 'هزار میلیارد'],
+    [1e9, 'B', 'میلیارد'],
+    [1e6, 'M', 'میلیون'],
+    [1e3, 'K', 'هزار'],
+  ];
+  const s = steps.find(([v]) => abs >= v);
+  const n = s ? Math.round((abs / s[0]) * 10) / 10 : abs;
+  const text = s ? (lang === 'fa' ? `${n} ${s[2]}` : `${n}${s[1]}`) : String(n);
+  return (neg ? (lang === 'fa' ? '−' : '-') : '') + (lang === 'fa' ? toPersianDigits(text).replace('.', '٫') : text);
 }

@@ -37,6 +37,10 @@ test('capture main screens', async ({ page }) => {
   await page.getByRole('link', { name: 'ابزارها' }).click();
   await page.getByRole('button', { name: 'تنظیمات و امنیت' }).click();
   await shot('7-settings');
+  await page.getByRole('link', { name: 'تحلیل' }).click();
+  await page.getByTestId('analytics-summary').waitFor();
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: 'test-results/shots/9-analytics.png', fullPage: true });
   await page.getByRole('link', { name: 'خانه' }).click();
   await page.getByRole('button', { name: 'قفل', exact: true }).click();
   await shot('8-lock');

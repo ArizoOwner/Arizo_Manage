@@ -18,6 +18,8 @@ import { ParallaxCard } from '../../core/motion/ParallaxCard';
 import { PrivacyBlur } from '../../core/motion/PrivacyBlur';
 import { Card, Icon, IconButton, ICONS, Screen } from '../../core/ui/ui';
 import { TxRow } from '../transactions/TxRow';
+import { BudgetList, InsightList, useAnalytics, useNames } from '../analytics/Analytics';
+import { periodAt } from '../../core/analytics/periods';
 
 
 export function Dashboard() {
@@ -62,6 +64,10 @@ export function Dashboard() {
       catById: new Map(data.cats.map((c) => [c.id, c])),
     };
   }, [data, cal]);
+
+  const p = periodAt(Date.now(), cal);
+  const { report } = useAnalytics(cal, p.y, p.m);
+  const names = useNames(data?.cats, data?.accounts);
 
   const ratio = view && view.cf.income > 0n ? Number((view.cf.expense * 100n) / view.cf.income) : null;
 
@@ -201,6 +207,29 @@ export function Dashboard() {
           ))
         )}
       </section>
+
+      <section className="flex flex-col gap-2" data-testid="dash-budgets">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[15px] font-bold">{t('dash.budgets')}</h2>
+          <button type="button" onClick={() => nav('/budgets')} className="min-h-11 px-2 text-[13px] font-semibold text-emerald-text">
+            {report && report.budgets.length ? t('dash.seeAll') : t('dash.addBudget')}
+          </button>
+        </div>
+        {report && report.budgets.length > 0 ? (
+          <Card className="p-3">
+            <BudgetList report={{ ...report, budgets: report.budgets.slice(0, 3) }} names={names} compact />
+          </Card>
+        ) : (
+          <p className="text-[13px] text-ink-2">{t('dash.noBudgets')}</p>
+        )}
+      </section>
+
+      {report && report.insights.length > 0 && (
+        <section className="flex flex-col gap-2" data-testid="dash-insights">
+          <h2 className="text-[15px] font-bold">{t('dash.insights')}</h2>
+          <InsightList insights={report.insights.slice(0, 3)} names={names} />
+        </section>
+      )}
 
       <section className="flex flex-col gap-1">
         <div className="flex items-center justify-between">

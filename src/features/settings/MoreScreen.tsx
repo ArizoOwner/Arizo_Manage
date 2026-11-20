@@ -9,6 +9,9 @@ const LIVE = [
   { to: '/loans', key: 'more.loans' },
   { to: '/debts', key: 'more.debts' },
   { to: '/sms', key: 'more.sms' },
+  { to: '/budgets', key: 'more.budgets' },
+  { to: '/goals', key: 'more.goals' },
+  { to: '/categories', key: 'more.categories' },
   { to: '/trash', key: 'more.trash' },
   { to: '/settings', key: 'more.settings' },
 ] as const;
@@ -32,15 +35,6 @@ export function MoreScreen() {
           </div>
         ))}
       </div>
-    </Screen>
-  );
-}
-
-export function AnalyticsPlaceholder() {
-  const { t } = useTranslation();
-  return (
-    <Screen title={t('analytics.title')}>
-      <p className="py-10 text-center text-[14px] text-ink-2">{t('analytics.soon')}</p>
     </Screen>
   );
 }

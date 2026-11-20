@@ -149,6 +149,9 @@ export function SettingsScreen() {
         <Segmented label={t('onboarding.calendar')} value={s.calendar} onChange={(calendar) => s.set({ calendar })} options={[{ value: 'jalali', label: t('calendar.jalali') }, { value: 'gregorian', label: t('calendar.gregorian') }]} />
         <Segmented label={t('onboarding.unit')} value={s.irrUnit} onChange={(irrUnit) => s.set({ irrUnit })} options={[{ value: 'toman', label: t('unit.toman') }, { value: 'rial', label: t('unit.rial') }]} />
         <Segmented label={t('settings.appearance')} value={s.theme} onChange={(theme) => s.set({ theme })} options={[{ value: 'obsidian', label: t('theme.obsidian') }, { value: 'alabaster', label: t('theme.alabaster') }]} />
+        <Button variant="secondary" onClick={() => nav('/categories')} data-testid="settings-categories">
+          {t('settings.categories')}
+        </Button>
       </Card>
 
       <Card className="flex flex-col gap-3">

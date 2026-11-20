@@ -5,7 +5,9 @@ import { Dashboard } from '../features/dashboard/Dashboard';
 import { AccountDetail, AccountNew, AccountsList, RatesScreen } from '../features/accounts/AccountsScreens';
 import { Ledger, Trash } from '../features/transactions/Ledger';
 import { SettingsScreen } from '../features/settings/Settings';
-import { AnalyticsPlaceholder, MoreScreen } from '../features/settings/MoreScreen';
+import { MoreScreen } from '../features/settings/MoreScreen';
+import { AnalyticsScreen } from '../features/analytics/Analytics';
+import { BudgetsScreen, CategoriesScreen, GoalsScreen } from '../features/analytics/Plans';
 import { ChequesScreen } from '../features/obligations/Cheques';
 import { LoansScreen } from '../features/obligations/Loans';
 import { DebtsScreen } from '../features/obligations/Debts';
@@ -29,7 +31,10 @@ export const router = createHashRouter([
       { path: 'accounts/new', element: <AccountNew /> },
       { path: 'accounts/:id', element: <AccountDetail /> },
       { path: 'rates', element: <RatesScreen /> },
-      { path: 'analytics', element: <AnalyticsPlaceholder /> },
+      { path: 'analytics', element: <AnalyticsScreen /> },
+      { path: 'budgets', element: <BudgetsScreen /> },
+      { path: 'goals', element: <GoalsScreen /> },
+      { path: 'categories', element: <CategoriesScreen /> },
       { path: 'more', element: <MoreScreen /> },
       { path: 'settings', element: <SettingsScreen /> },
       { path: 'cheques', element: <ChequesScreen /> },

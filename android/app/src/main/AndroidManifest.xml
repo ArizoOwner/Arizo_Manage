@@ -74,6 +74,11 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 
+    <!-- Card scanner: the WebView asks for CAMERA at runtime the first time the user taps "Scan card"
+         (Capacitor's BridgeWebChromeClient). Frames are read on-device; nothing is recorded. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <!-- The bank-app picker lists launcher apps only (no QUERY_ALL_PACKAGES). -->
     <queries>
         <intent>

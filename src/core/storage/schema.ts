@@ -28,6 +28,11 @@ export interface Account extends Base {
   card_last4: string | null;
   /** Full PAN, sealed under a field key on top of record encryption; never shown without re-auth. */
   card_number_enc: string | null;
+  /** Card expiry "MM/YY" and CVV2 (optional; rows written before they existed simply lack them). Same
+   *  protection as the PAN: inside the encrypted row, shown or copied only after re-authentication. */
+  card_expiry?: string | null;
+  card_expiry_jalali?: boolean;
+  card_cvv2?: string | null;
   account_number: string | null;
   iban_sheba: string | null;
   currency_code: CurrencyCode;

@@ -43,6 +43,27 @@ export function installE2eHooks() {
         }
         return { messages: texts.length, median: median(times), max: Math.max(...times) };
       },
+      /** Card scanner: draw a synthetic card face, run the real on-device OCR on it, parse the text. */
+      async ocrCard(lines: string[]) {
+        const c = document.createElement('canvas');
+        c.width = 1012;
+        c.height = 638;
+        const g = c.getContext('2d')!;
+        g.fillStyle = '#1b2a4a';
+        g.fillRect(0, 0, c.width, c.height);
+        g.fillStyle = '#f4f1ea';
+        g.font = 'bold 58px monospace';
+        lines.forEach((l, i) => g.fillText(l, 70, 250 + i * 95));
+        const { framePng } = await import('../core/cardscan/frames');
+        const { recognize, endOcr } = await import('../core/cardscan/ocrClient');
+        const { parseCardText } = await import('../core/cardscan/parseCard');
+        const t0 = performance.now();
+        const r = await recognize(await framePng(c));
+        const ms = performance.now() - t0;
+        endOcr();
+        const p = parseCardText(r.text);
+        return { text: r.text, ms, number: p.number, expiry: p.expiry, cvv2: p.cvv2 };
+      },
     },
   });
 }

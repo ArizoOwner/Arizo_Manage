@@ -213,6 +213,8 @@ Generated from `package.json` dependencies and their dependencies (201 packages)
 | `undici-types` | 8.9.0 | MIT | [source](https://github.com/nodejs/undici) |
 | `unzipper` | 0.10.14 | MIT | [source](https://github.com/ZJONSSON/node-unzipper) |
 | `uqr` | 0.1.3 | MIT | [source](https://github.com/unjs/uqr) |
+| `tesseract.js-core` | 6.1.2 | Apache-2.0 | [source](https://github.com/naptha/tesseract.js-core) (Tesseract OCR engine, Apache-2.0, compiled to WebAssembly) |
+| `@tesseract.js-data/eng` | 1.0.0 | MIT (package); model data from tesseract-ocr/tessdata_best, Apache-2.0 | [source](https://github.com/naptha/tessdata) |
 | `util-deprecate` | 1.0.2 | MIT | [source](https://github.com/TooTallNate/util-deprecate) |
 | `uuid` | 8.3.2 | MIT | [source](https://github.com/uuidjs/uuid) |
 | `void-elements` | 3.1.0 | MIT | [source](https://github.com/pugjs/void-elements) |

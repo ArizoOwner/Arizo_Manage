@@ -8,7 +8,7 @@ import { useVaultQuery } from '../../app/useVaultQuery';
 import { ArizoSecurity, isNative } from '../../core/bridge/native';
 import { bankByCode } from '../../core/data/banks';
 import { CURRENCIES, parseMajor, type CurrencyCode } from '../../core/currency/money';
-import { formatDate, formatMoney } from '../../core/i18n/format';
+import { formatDate, formatMoney, localDigits } from '../../core/i18n/format';
 import { reconcileBalance, setArchived } from '../../core/ledger/accounts';
 import { computeNetWorth, latestRate } from '../../core/ledger/networth';
 import { ParallaxCard } from '../../core/motion/ParallaxCard';
@@ -173,6 +173,37 @@ export function AccountDetail() {
                   <Icon d={ICONS.copy} />
                 </IconButton>
               </div>
+            </div>
+          )}
+          {(a.card_expiry || a.card_cvv2) && (
+            <div className="flex items-center gap-4 text-[13px]" data-testid="card-secrets">
+              {a.card_expiry && (
+                <span className="flex flex-col">
+                  <span className="text-[11px] text-ink-2">{a.card_expiry_jalali ? t('scan.expiryJalali') : t('scan.expiry')}</span>
+                  <PrivacyBlur>
+                    <span className="font-semibold tabular" dir="ltr" data-testid="card-expiry">
+                      {revealed ? localDigits(a.card_expiry, lang) : '••/••'}
+                    </span>
+                  </PrivacyBlur>
+                </span>
+              )}
+              {a.card_cvv2 && (
+                <span className="flex flex-col">
+                  <span className="text-[11px] text-ink-2">{t('scan.cvv2')}</span>
+                  <PrivacyBlur>
+                    <span className="font-semibold tabular" dir="ltr" data-testid="card-cvv2">
+                      {revealed ? localDigits(a.card_cvv2, lang) : '•'.repeat(a.card_cvv2.length)}
+                    </span>
+                  </PrivacyBlur>
+                </span>
+              )}
+              {a.card_cvv2 && (
+                <span className="ms-auto">
+                  <IconButton label={t('scan.copyCvv2')} onClick={() => copy(a.card_cvv2!)}>
+                    <Icon d={ICONS.copy} />
+                  </IconButton>
+                </span>
+              )}
             </div>
           )}
           {a.iban_sheba && (

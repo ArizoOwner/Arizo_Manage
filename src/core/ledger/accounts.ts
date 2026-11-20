@@ -11,6 +11,10 @@ export interface AccountInput {
   type: AccountType;
   bank_code: string | null;
   card_number: string;
+  /** "MM/YY"; Jalali year on Iranian cards when `card_expiry_jalali`. */
+  card_expiry?: string;
+  card_expiry_jalali?: boolean;
+  card_cvv2?: string;
   iban_sheba: string;
   account_number: string;
   currency_code: CurrencyCode;
@@ -20,13 +24,17 @@ export interface AccountInput {
   notes: string;
 }
 
-export type AccountFieldError = 'name' | 'card' | 'sheba';
+export type AccountFieldError = 'name' | 'card' | 'sheba' | 'expiry' | 'cvv2';
 
 export function validateAccount(input: AccountInput): AccountFieldError[] {
   const errors: AccountFieldError[] = [];
   if (!input.name.trim()) errors.push('name');
   if (input.card_number.trim() && !isValidCardNumber(input.card_number)) errors.push('card');
   if (input.iban_sheba.trim() && !isValidSheba(input.iban_sheba)) errors.push('sheba');
+  const exp = onlyDigits(input.card_expiry ?? '');
+  if (exp && (exp.length !== 4 || Number(exp.slice(0, 2)) < 1 || Number(exp.slice(0, 2)) > 12)) errors.push('expiry');
+  const cvv = onlyDigits(input.card_cvv2 ?? '');
+  if (cvv && (cvv.length < 3 || cvv.length > 4)) errors.push('cvv2');
   return errors;
 }
 
@@ -40,6 +48,9 @@ function fields(input: AccountInput) {
     // only reveals or copies it after re-authentication.
     card_number_enc: card || null,
     card_last4: card ? card.slice(-4) : null,
+    card_expiry: onlyDigits(input.card_expiry ?? '').replace(/^(\d{2})(\d{2})$/, '$1/$2') || null,
+    card_expiry_jalali: !!input.card_expiry_jalali,
+    card_cvv2: onlyDigits(input.card_cvv2 ?? '') || null,
     iban_sheba: input.iban_sheba.trim() ? normalizeSheba(input.iban_sheba) : null,
     account_number: input.account_number.trim() || null,
     currency_code: input.currency_code,
@@ -105,6 +116,9 @@ export const accountToInput = (a: Account): AccountInput => ({
   type: a.type,
   bank_code: a.bank_code,
   card_number: a.card_number_enc ?? '',
+  card_expiry: a.card_expiry ?? '',
+  card_expiry_jalali: a.card_expiry_jalali ?? false,
+  card_cvv2: a.card_cvv2 ?? '',
   iban_sheba: a.iban_sheba ?? '',
   account_number: a.account_number ?? '',
   currency_code: a.currency_code,

@@ -11,6 +11,8 @@ import type { IVaultDatabase } from '../../core/storage/IVaultDatabase';
 import type { Account, AccountType } from '../../core/storage/schema';
 import { CARD_FINISH_IDS, CARD_FINISHES } from '../../core/theme/cardFinishes';
 import { Button, Field, Toggle } from '../../core/ui/ui';
+import { Glyph } from '../../core/ui/glyphs';
+import { CardScanner } from './CardScanner';
 
 const TYPES: AccountType[] = ['bank_card', 'bank_account', 'cash', 'savings_vault', 'investment', 'crypto', 'gold', 'wallet'];
 
@@ -19,6 +21,9 @@ const blank: AccountInput = {
   type: 'bank_card',
   bank_code: null,
   card_number: '',
+  card_expiry: '',
+  card_expiry_jalali: true,
+  card_cvv2: '',
   iban_sheba: '',
   account_number: '',
   currency_code: 'IRR',
@@ -48,6 +53,8 @@ export function AccountForm({ db, account, onSaved, submitLabel }: { db: IVaultD
   const [touched, setTouched] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanned, setScanned] = useState(false);
 
   const detected = useMemo(() => detectBankByCard(v.card_number), [v.card_number]);
   const errors = validateAccount(v);
@@ -57,7 +64,7 @@ export function AccountForm({ db, account, onSaved, submitLabel }: { db: IVaultD
   } catch {
     balanceError = t('keypad.overflow');
   }
-  const msg = { name: 'accounts.invalidName', card: 'accounts.invalidCard', sheba: 'accounts.invalidSheba' } as const;
+  const msg = { name: 'accounts.invalidName', card: 'accounts.invalidCard', sheba: 'accounts.invalidSheba', expiry: 'scan.invalidExpiry', cvv2: 'scan.invalidCvv2' } as const;
   const show = (k: keyof typeof msg) => (touched && errors.includes(k) ? t(msg[k]) : undefined);
   const set = <K extends keyof AccountInput>(k: K, val: AccountInput[K]) => setV((p) => ({ ...p, [k]: val }));
   const isCard = v.type === 'bank_card' || v.type === 'bank_account';
@@ -101,6 +108,38 @@ export function AccountForm({ db, account, onSaved, submitLabel }: { db: IVaultD
       </label>
       {isCard && (
         <>
+          {/* Scan: fills number, expiry, CVV2, Sheba and bank from the camera, all on this device. */}
+          <button
+            type="button"
+            onClick={() => setScanning(true)}
+            className="group relative flex min-h-16 items-center gap-3 overflow-hidden rounded-2xl border border-emerald/30 bg-[linear-gradient(120deg,color-mix(in_srgb,var(--arizo-accent-primary)_14%,transparent),transparent_60%)] p-3 text-start transition-transform active:scale-[0.98]"
+            data-testid="scan-card"
+          >
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald/15 text-emerald-text">
+              <Glyph name="scan" className="h-6 w-6" />
+            </span>
+            <span className="flex min-w-0 flex-col">
+              <span className="text-[15px] font-bold text-ink">{t('scan.cta')}</span>
+              <span className="text-[12px] text-ink-2">{scanned ? t('scan.filled') : t('scan.ctaHint')}</span>
+            </span>
+          </button>
+          {scanning && (
+            <CardScanner
+              onClose={() => setScanning(false)}
+              onResult={(r) => {
+                setScanned(true);
+                setV((p) => ({
+                  ...p,
+                  card_number: r.number,
+                  card_expiry: r.expiry ?? p.card_expiry ?? '',
+                  card_expiry_jalali: r.expiry ? r.expiryJalali : (p.card_expiry_jalali ?? true),
+                  card_cvv2: r.cvv2 ?? p.card_cvv2 ?? '',
+                  iban_sheba: r.sheba ?? p.iban_sheba,
+                  bank_code: r.bankCode ?? p.bank_code,
+                }));
+              }}
+            />
+          )}
           <Field
             label={t('accounts.card')}
             value={v.card_number}
@@ -112,6 +151,36 @@ export function AccountForm({ db, account, onSaved, submitLabel }: { db: IVaultD
             dir="ltr"
             data-testid="acc-card"
           />
+          {v.type === 'bank_card' && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                label={v.card_expiry_jalali ? t('scan.expiryJalali') : t('scan.expiry')}
+                value={v.card_expiry ?? ''}
+                onChange={(e) => set('card_expiry', e.target.value.replace(/[^\d۰-۹/]/g, '').slice(0, 5))}
+                error={show('expiry')}
+                placeholder={v.card_expiry_jalali ? '۰۸/۰۷' : '08/29'}
+                inputMode="numeric"
+                autoComplete="off"
+                dir="ltr"
+                data-testid="acc-expiry"
+              />
+              <Field
+                label={t('scan.cvv2')}
+                value={v.card_cvv2 ?? ''}
+                onChange={(e) => set('card_cvv2', e.target.value.replace(/[^\d۰-۹]/g, '').slice(0, 4))}
+                error={show('cvv2')}
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                dir="ltr"
+                data-testid="acc-cvv2"
+              />
+              <label className="col-span-2 -mt-1 flex items-center gap-2 text-[12px] text-ink-2">
+                <input type="checkbox" checked={v.card_expiry_jalali ?? true} onChange={(e) => set('card_expiry_jalali', e.target.checked)} className="h-4 w-4 accent-[var(--arizo-accent-primary)]" />
+                {t('scan.jalaliYear')}
+              </label>
+            </div>
+          )}
           <Field label={t('accounts.sheba')} value={v.iban_sheba} onChange={(e) => set('iban_sheba', e.target.value)} error={show('sheba')} placeholder="IR…" autoComplete="off" dir="ltr" data-testid="acc-sheba" />
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-semibold text-ink-2">{t('accounts.bank')}</span>

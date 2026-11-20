@@ -99,26 +99,45 @@ export function learnMerchant(db: IVaultDatabase, merchant: string, categoryId: 
   });
 }
 
-/** Card suffix first; then the only account of that bank; then the only account in that currency. */
-export function matchAccount(accounts: readonly Account[], p: Pick<ParsedSms, 'card_suffix' | 'bank_code' | 'currency_code'>): Account | null {
+/**
+ * Which account an SMS belongs to, most specific evidence first:
+ * 1. the card/account suffix in the text (last 4 digits of the card, or the end of the account number);
+ * 2. the bank named in the text (a neo-bank also matches its issuer: Blu is printed on Saman cards);
+ * 3. the only bank-type account in that currency.
+ * Whenever a step leaves more than one candidate, the reported balance breaks the tie: the bank's new
+ * balance minus this transaction's effect must equal what the vault holds for exactly one of them.
+ * Anything still ambiguous returns null, so the message waits in the inbox instead of landing on the
+ * wrong card and skewing both balances.
+ */
+export function matchAccount(
+  accounts: readonly Account[],
+  p: Pick<ParsedSms, 'card_suffix' | 'bank_code' | 'currency_code'> & Partial<Pick<ParsedSms, 'balance_after_minor' | 'amount_minor' | 'direction'>>,
+): Account | null {
   const live = accounts.filter((a) => a.deleted_at === null && !a.is_archived && a.currency_code === p.currency_code);
+  const effect = p.amount_minor === undefined ? null : p.direction === 'credit' ? p.amount_minor : -p.amount_minor;
+  const pick = (c: Account[]): Account | null | 'many' => {
+    if (c.length === 1) return c[0]!;
+    if (!c.length) return null;
+    if (p.balance_after_minor != null && effect !== null) {
+      const fit = c.filter((a) => a.current_balance_minor + effect === p.balance_after_minor);
+      if (fit.length === 1) return fit[0]!;
+    }
+    return 'many';
+  };
+  const issuer = p.bank_code ? bankByCode(p.bank_code)?.issuer : undefined;
+  const ofBank = (a: Account) => !!p.bank_code && (a.bank_code === p.bank_code || (!!issuer && a.bank_code === issuer));
   if (p.card_suffix) {
     const bySuffix = live.filter((a) => a.card_last4 === p.card_suffix || (a.account_number ?? '').endsWith(p.card_suffix!));
-    if (bySuffix.length === 1) return bySuffix[0]!;
+    // Same last 4 digits on two cards: the bank in the text narrows it down first.
+    const r = pick(bySuffix.length > 1 && bySuffix.some(ofBank) ? bySuffix.filter(ofBank) : bySuffix);
+    if (r) return r === 'many' ? null : r;
   }
   if (p.bank_code) {
-    const byBank = live.filter((a) => a.bank_code === p.bank_code);
-    if (byBank.length === 1) return byBank[0]!;
-    // Neo-banks sit on an issuing bank (Blu on Saman): a card saved under the issuer, which is what the
-    // BIN detects for a Blu card, is the same account when it is the only one there.
-    const issuer = bankByCode(p.bank_code)?.issuer;
-    if (!byBank.length && issuer) {
-      const byIssuer = live.filter((a) => a.bank_code === issuer);
-      if (byIssuer.length === 1) return byIssuer[0]!;
-    }
+    const r = pick(live.filter(ofBank));
+    if (r) return r === 'many' ? null : r;
   }
-  const bankish = live.filter((a) => a.type === 'bank_card' || a.type === 'bank_account' || a.type === 'wallet');
-  return bankish.length === 1 ? bankish[0]! : null;
+  const r = pick(live.filter((a) => a.type === 'bank_card' || a.type === 'bank_account' || a.type === 'wallet'));
+  return r === 'many' ? null : r;
 }
 
 function isNearDuplicate(t: Transaction, accountId: Id, p: ParsedSms, at: number): boolean {

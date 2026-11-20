@@ -31,6 +31,11 @@ export function Field({ label, error, hint, className = '', ...rest }: InputHTML
         // Direction follows what is typed (a Latin name in the Persian UI stays left-to-right instead of
         // jumping around the caret); fields that are always Latin pass dir="ltr" themselves.
         dir="auto"
+        // No suggestions/autocorrect: some Android keyboards (reported on Xiaomi) lose Latin text that is
+        // still a suggestion "composition", and a finance vault should not teach the keyboard its names.
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
         {...rest}
         className={`min-h-12 rounded-2xl border bg-surface-3 px-4 text-[15px] text-ink outline-none placeholder:text-ink-3 focus:border-azure ${error ? 'border-coral' : 'border-transparent'}`}
       />

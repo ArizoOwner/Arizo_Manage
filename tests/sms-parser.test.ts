@@ -127,6 +127,27 @@ describe.each(ADAPTERS)('SMS ingestion on %s', (_n, make) => {
     expect((await db.get('merchant_category_memory', 'اسنپ فود'))?.category_id).toBe('cat_food');
   });
 
+  it('two cards: the card suffix, then the bank, then the reported balance pick the account; a tie waits in the inbox', async () => {
+    const db = await make();
+    // Two Melli cards and one Saman card (a Blu card is printed on Saman), different balances.
+    const m1 = await createAccount(db, { ...melliCard, name: 'ملی ۱' });
+    const m2 = await createAccount(db, { ...melliCard, name: 'ملی ۲', card_number: '6037991234567893', initial_balance_minor: 30_000_000n });
+    const blu = await createAccount(db, { ...melliCard, name: 'بلو', bank_code: 'saman', card_number: '6219861234567898', initial_balance_minor: 5_818_710n });
+    let k = 0;
+    const on = async (text: string) => {
+      const o = await ingestSms(db, { text, source: 'paste_parse' }, undefined, NOW + ++k * 3_600_000);
+      return o.kind === 'queued' ? o.tx.account_id : o.kind;
+    };
+    // 1. The suffix in the text decides, even with two cards of the same bank.
+    expect(await on('بانک ملی\nبرداشت 100,000 ریال\nکارت ****7893')).toBe(m2.id);
+    // 2. No suffix, two Melli cards: the reported balance fits only one of them.
+    expect(await on('بانک ملی\nبرداشت 200,000 ریال\nموجودی 9,800,000 ریال')).toBe(m1.id);
+    // 3. A Blu SMS lands on the card saved under Saman (its issuer).
+    expect(await on('بلو\nبرداشت پول\n199,000ریال از حساب شما پرید.\nموجودی: 5,619,710 ریال')).toBe(blu.id);
+    // 4. Nothing tells the two Melli cards apart: never guessed, the message waits in the inbox.
+    expect(await on('بانک ملی\nبرداشت 50,000 ریال')).toBe('inbox');
+  });
+
   it('dedupes the same SMS by SHA-256 fingerprint (pasted twice, different spacing/digits)', async () => {
     const db = await make();
     await createAccount(db, melliCard);

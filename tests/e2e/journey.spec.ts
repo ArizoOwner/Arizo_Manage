@@ -159,6 +159,8 @@ test('settings: integrity check, Toman ⇄ Rial, theme and language persist acro
 test('duress PIN opens the decoy vault, not the real one', async ({ page }) => {
   await onboard(page, { demo: true });
   await expect(page.getByTestId('card-stack')).toBeVisible({ timeout: 30_000 });
+  // Wait for the demo rows: right after onboarding the hero can still read 0 for a moment.
+  await expect(netWorth(page)).not.toHaveText('۰ تومان', { timeout: 30_000 });
   const real = await netWorth(page).textContent();
   await page.getByRole('button', { name: 'تنظیمات' }).click();
   await page.getByTestId('decoy-set').click(); // re-auth is still fresh from the unlock

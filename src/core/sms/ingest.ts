@@ -6,6 +6,7 @@ import { balanceEffect, createTransaction, postPendingTransaction } from '../led
 import type { IVaultDatabase, VaultTx } from '../storage/IVaultDatabase';
 import type { Account, Id, SmsParserRule, Transaction, TxSource } from '../storage/schema';
 import { uuidv7 } from '../utils/uuidv7';
+import { bankByCode } from '../data/banks';
 import { normalizeSms } from './normalize';
 import { parseSms, smsFingerprint, type ParseOptions, type ParseResult, type ParsedSms } from './parser';
 
@@ -108,6 +109,13 @@ export function matchAccount(accounts: readonly Account[], p: Pick<ParsedSms, 'c
   if (p.bank_code) {
     const byBank = live.filter((a) => a.bank_code === p.bank_code);
     if (byBank.length === 1) return byBank[0]!;
+    // Neo-banks sit on an issuing bank (Blu on Saman): a card saved under the issuer, which is what the
+    // BIN detects for a Blu card, is the same account when it is the only one there.
+    const issuer = bankByCode(p.bank_code)?.issuer;
+    if (!byBank.length && issuer) {
+      const byIssuer = live.filter((a) => a.bank_code === issuer);
+      if (byIssuer.length === 1) return byIssuer[0]!;
+    }
   }
   const bankish = live.filter((a) => a.type === 'bank_card' || a.type === 'bank_account' || a.type === 'wallet');
   return bankish.length === 1 ? bankish[0]! : null;

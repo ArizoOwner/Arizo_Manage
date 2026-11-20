@@ -73,6 +73,8 @@ export const IRANIAN: Vector[] = [
 export const NEOBANKS: Vector[] = [
   { name: 'blu deposit toman', text: 'بلو\nواریز 3,000,000 تومان به حساب شما\nمانده: 45,000,000 تومان', expect: { kind: 'parsed', bank: 'blu', dir: 'credit', amount: '30000000', balance: '450000000' } },
   { name: 'blu purchase push', text: 'بلوبانک: خرید 120,000 تومان از دیجی کالا. موجودی: 2,380,000 تومان', expect: { kind: 'parsed', bank: 'blu', dir: 'debit', amount: '1200000', balance: '23800000' } },
+  // Shape reported by a user (name replaced): "پرید" for a debit, Rial glued to the number, time and a dotted Jalali date on their own lines.
+  { name: 'blu withdrawal dotted date', text: 'بلو\nبرداشت پول\nکاربر عزیز، 199,000ریال از حساب شما پرید.\nموجودی: 5,619,710 ریال\n۱۴:۵۸\n۱۴۰۵.۰۸.۲۹', expect: { kind: 'parsed', bank: 'blu', dir: 'debit', amount: '199000', balance: '5619710', at: '1405-08-29 14:58' } },
   { name: 'blu transfer', text: 'بلو بانک\nانتقال 500,000 تومان به علی\nمانده 1,500,000 تومان', expect: { kind: 'parsed', bank: 'blu', dir: 'debit', amount: '5000000', balance: '15000000' } },
   { name: 'wepod deposit rial', text: 'ویپاد\nواریز 10,000,000 ریال\nموجودی 12,000,000 ریال', expect: { kind: 'parsed', bank: 'wepod', dir: 'credit', amount: '10000000', balance: '12000000' } },
   { name: 'wepod purchase no balance', text: 'ویپاد: پرداخت 250,000 ریال به اسنپ', expect: { kind: 'parsed', bank: 'wepod', dir: 'debit', amount: '250000', balance: null } },

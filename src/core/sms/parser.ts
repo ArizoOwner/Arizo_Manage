@@ -129,8 +129,13 @@ function takeDateTime(s: string, iranian: boolean, order: string, o: ParseOption
     if (m && fn(m)) s = blank(s, m.index, m.index + m[0].length);
   };
 
-  // 1403/08/15, 1403-08-15, 2026/11/20, 03/08/15
-  take(/(?<![\d.,])(\d{2,4})[/-](\d{1,2})[/-](\d{1,4})(?![\d,]|\.\d)/, (m) => {
+  // 1403/08/15, 1403-08-15, 2026/11/20, 03/08/15; Blu Bank and others write 1405.08.29 (a 4-digit
+  // year first, so it cannot be an amount with a decimal point).
+  take(/(?<![\d.,])(\d{4})\.(\d{1,2})\.(\d{1,2})(?![\d.,])/, (m) => {
+    ymd = { y: +m[1]!, m: +m[2]!, d: +m[3]!, jalali: +m[1]! < 1700 };
+    return true;
+  });
+  if (!ymd) take(/(?<![\d.,])(\d{2,4})[/-](\d{1,2})[/-](\d{1,4})(?![\d,]|\.\d)/, (m) => {
     const a = +m[1]!;
     const b = +m[2]!;
     const c = +m[3]!;

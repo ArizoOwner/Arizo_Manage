@@ -4,17 +4,26 @@ import { DesignGallery } from '../features/gallery/DesignGallery';
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { AccountDetail, AccountNew, AccountsList, RatesScreen } from '../features/accounts/AccountsScreens';
 import { Ledger, Trash } from '../features/transactions/Ledger';
-import { SettingsScreen } from '../features/settings/Settings';
 import { MoreScreen } from '../features/settings/MoreScreen';
 import { AnalyticsScreen } from '../features/analytics/Analytics';
-import { BudgetsScreen, CategoriesScreen, GoalsScreen } from '../features/analytics/Plans';
-import { ChequesScreen } from '../features/obligations/Cheques';
-import { LoansScreen } from '../features/obligations/Loans';
-import { DebtsScreen } from '../features/obligations/Debts';
-import { SmsCenter } from '../features/sms-intelligence/SmsCenter';
-import { BusinessProfileScreen, CatalogScreen, InvoiceDetail, InvoiceEditor, InvoicesScreen } from '../features/invoices/InvoiceStudio';
-import { BatchStatementScreen, ExportScreen, ImportScreen, StatementScreen } from '../features/invoices/LedgerTools';
-import { BackupScreen } from '../features/backup/BackupScreen';
+
+// Screens away from the first paint are separate chunks, fetched when opened (and precached by the
+// service worker for offline use). `screen(load, 'Name', props)` builds a route `lazy` loader.
+const screen =
+  <M extends Record<string, unknown>>(load: () => Promise<M>, name: keyof M & string, props: Record<string, unknown> = {}) =>
+  async () => {
+    const C = (await load())[name] as unknown as (p: Record<string, unknown>) => React.ReactElement;
+    return { element: <C {...props} /> };
+  };
+const settings = () => import('../features/settings/Settings');
+const plans = () => import('../features/analytics/Plans');
+const cheques = () => import('../features/obligations/Cheques');
+const loans = () => import('../features/obligations/Loans');
+const debts = () => import('../features/obligations/Debts');
+const sms = () => import('../features/sms-intelligence/SmsCenter');
+const studio = () => import('../features/invoices/InvoiceStudio');
+const tools = () => import('../features/invoices/LedgerTools');
+const backup = () => import('../features/backup/BackupScreen');
 
 // Hash routing: required for static zero-server hosting. `#/sms-ingest?d=` is consumed and wiped in
 // main.tsx (captureIngestFragment) before the router ever sees it.
@@ -33,29 +42,29 @@ export const router = createHashRouter([
       { path: 'accounts', element: <AccountsList /> },
       { path: 'accounts/new', element: <AccountNew /> },
       { path: 'accounts/:id', element: <AccountDetail /> },
-      { path: 'accounts/:id/statement', element: <StatementScreen /> },
-      { path: 'statements', element: <BatchStatementScreen /> },
+      { path: 'accounts/:id/statement', lazy: screen(tools, 'StatementScreen') },
+      { path: 'statements', lazy: screen(tools, 'BatchStatementScreen') },
       { path: 'rates', element: <RatesScreen /> },
       { path: 'analytics', element: <AnalyticsScreen /> },
-      { path: 'budgets', element: <BudgetsScreen /> },
-      { path: 'goals', element: <GoalsScreen /> },
-      { path: 'categories', element: <CategoriesScreen /> },
+      { path: 'budgets', lazy: screen(plans, 'BudgetsScreen') },
+      { path: 'goals', lazy: screen(plans, 'GoalsScreen') },
+      { path: 'categories', lazy: screen(plans, 'CategoriesScreen') },
       { path: 'more', element: <MoreScreen /> },
-      { path: 'settings', element: <SettingsScreen /> },
-      { path: 'cheques', element: <ChequesScreen /> },
-      { path: 'loans', element: <LoansScreen /> },
-      { path: 'debts', element: <DebtsScreen /> },
-      { path: 'sms', element: <SmsCenter /> },
-      { path: 'sms/paste', element: <SmsCenter initialTab="paste" /> },
-      { path: 'invoices', element: <InvoicesScreen /> },
-      { path: 'invoices/new', element: <InvoiceEditor /> },
-      { path: 'invoices/profile', element: <BusinessProfileScreen /> },
-      { path: 'invoices/catalog', element: <CatalogScreen /> },
-      { path: 'invoices/:id', element: <InvoiceDetail /> },
-      { path: 'invoices/:id/edit', element: <InvoiceEditor /> },
-      { path: 'import', element: <ImportScreen /> },
-      { path: 'export', element: <ExportScreen /> },
-      { path: 'backup', element: <BackupScreen /> },
+      { path: 'settings', lazy: screen(settings, 'SettingsScreen') },
+      { path: 'cheques', lazy: screen(cheques, 'ChequesScreen') },
+      { path: 'loans', lazy: screen(loans, 'LoansScreen') },
+      { path: 'debts', lazy: screen(debts, 'DebtsScreen') },
+      { path: 'sms', lazy: screen(sms, 'SmsCenter') },
+      { path: 'sms/paste', lazy: screen(sms, 'SmsCenter', { initialTab: 'paste' }) },
+      { path: 'invoices', lazy: screen(studio, 'InvoicesScreen') },
+      { path: 'invoices/new', lazy: screen(studio, 'InvoiceEditor') },
+      { path: 'invoices/profile', lazy: screen(studio, 'BusinessProfileScreen') },
+      { path: 'invoices/catalog', lazy: screen(studio, 'CatalogScreen') },
+      { path: 'invoices/:id', lazy: screen(studio, 'InvoiceDetail') },
+      { path: 'invoices/:id/edit', lazy: screen(studio, 'InvoiceEditor') },
+      { path: 'import', lazy: screen(tools, 'ImportScreen') },
+      { path: 'export', lazy: screen(tools, 'ExportScreen') },
+      { path: 'backup', lazy: screen(backup, 'BackupScreen') },
       { path: '*', element: <Dashboard /> },
     ],
   },

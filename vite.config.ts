@@ -47,6 +47,17 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        // The OCR engine and model (5.7 MB) are not installed with the app: on an iPhone the first open
+        // downloaded them alongside the app itself. They are cached on the first scan instead.
+        // Same for the Excel worker (0.9 MB): fetched and cached the first time an .xlsx is exported.
+        globIgnores: ['**/tesseract-core-*.wasm', 'ocr/**', '**/xlsx.worker-*.js'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => /\/ocr\/[^/]+\.bin$|\/assets\/(tesseract-core-[^/]+\.wasm|xlsx\.worker-[^/]+\.js)$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'arizo-ondemand', expiration: { maxEntries: 6 } },
+          },
+        ],
       },
     }),
   ],

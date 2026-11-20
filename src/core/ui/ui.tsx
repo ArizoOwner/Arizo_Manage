@@ -28,6 +28,9 @@ export function Field({ label, error, hint, className = '', ...rest }: InputHTML
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error || hint ? `${id}-d` : undefined}
+        // Direction follows what is typed (a Latin name in the Persian UI stays left-to-right instead of
+        // jumping around the caret); fields that are always Latin pass dir="ltr" themselves.
+        dir="auto"
         {...rest}
         className={`min-h-12 rounded-2xl border bg-surface-3 px-4 text-[15px] text-ink outline-none placeholder:text-ink-3 focus:border-azure ${error ? 'border-coral' : 'border-transparent'}`}
       />

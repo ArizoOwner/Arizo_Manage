@@ -8,7 +8,7 @@ on real hardware.
 
 Audit date: 2026-11-20 (Phase 9). Method: code review of every control below, the automated checks
 named next to it, and the fixes listed under "Findings". Nothing here was run on a physical Android
-phone, a printer or an iPhone (see §6).
+phone, a printer or an iPhone (see §7).
 
 ## 1. Assets and adversaries
 
@@ -207,14 +207,26 @@ customer IDs, attachments (receipt photos, logo, signature), bank SMS text, the 
   hash-wasm, WebCrypto AES-GCM/HKDF, SQLCipher, Android Keystore) and tested against vectors, but the
   composition is this project's own.
 
-## 6. Not verified on real hardware
+## 6. Verified on an Android 15 emulator (after Phase 9)
+
+A device report after Phase 9 showed that the PIN never unlocked on a phone. Cause: `ArizoSqlCipherPlugin`
+ran `PRAGMA secure_delete = ON` through `execSQL`, which SQLCipher rejects for statements that return a
+row, so the database never opened. Fixed (all PRAGMAs via `rawQuery`, guard test
+`tests/android-native.test.ts`), and the lock screen now shows an error instead of looking frozen.
+
+`scripts/android-smoke.mjs` now drives the debug APK on an emulator: vault creation (Argon2id 64 MiB,
+native PIN slot, SQLCipher `cipher_version`), demo data, lock, wrong PIN refused, right PIN, fingerprint
+enrolment and fingerprint unlock (BiometricPrompt + Keystore key), and data intact after a force-stop. The
+signed R8 release APK passed the same flow by hand, and a screenshot of it is black (`FLAG_SECURE`).
+
+## 7. Not verified on real hardware
 
 All of the following compile (debug and R8 release) and are code-reviewed, but **none has been run on a
-physical phone, printer or iPhone**:
+physical phone, printer or iPhone** (an emulator covered only what §6 lists):
 
-- `FLAG_SECURE`, the WebView firewall answering 403 on a device, the `onPause`/`onResume` curtain events.
-- BiometricPrompt + Keystore key invalidation on new enrolment; StrongBox fallback.
-- SQLCipher open and `cipher_version` on a device; the sensitive clipboard.
+- The WebView firewall answering 403 on a device, the `onPause`/`onResume` curtain events.
+- Keystore key invalidation on a new enrolment; StrongBox; vendor fingerprint and face sensors.
+- The sensitive clipboard.
 - Every SMS path: `SMS_RECEIVED` receiver, notification listener, Android 13+ Restricted Settings flow,
   sealed queue round trip, history scan, capture notification.
 - Printing: `ArizoPrintPlugin` (PrintManager, Persian shaping on paper) and `ArizoThermalPrintPlugin`
@@ -227,7 +239,7 @@ physical phone, printer or iPhone**:
 - The new launcher icon on a launcher (only rendered as PNG and compiled into the APK).
 - Smooth scrolling on a phone: the stress numbers below come from headless Chromium on a laptop.
 
-## 7. Performance (Phase 9 stress test)
+## 8. Performance (Phase 9 stress test)
 
 `tests/e2e/stress.spec.ts`, production-mode E2E build (minified, CSP on, encrypted IndexedDB; Argon2 is
 lowered only for test speed), 390×844, headless Chromium on a Windows laptop. 20,000 transactions are

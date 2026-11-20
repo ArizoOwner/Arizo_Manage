@@ -67,7 +67,7 @@ mismatches, and can fix drift.
 
 Rows are decrypted on the thread that owns the database handle and sent to workers by structured clone
 (bigint survives). Phase 9 measured 20,000 transactions: analytics 69–121 ms, 1,000 SMS 30–58 ms, ledger
-scroll p95 16.8 ms (see `docs/security.md` §7).
+scroll p95 16.8 ms (see `docs/security.md` §8).
 
 ## UI
 

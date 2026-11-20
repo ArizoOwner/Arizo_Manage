@@ -89,9 +89,7 @@ export const vaultService = {
       const saltB64 = toB64(randomBytes(16));
       await ArizoSecurity.createVault({ kekB64: await kekFor(pin, saltB64, params), vaultId });
       writeMeta({ v: 1, platform: 'android', android: { saltB64, params, vaultId } });
-      const open = await this.openNative(vaultId);
-      await seedCategories(open.db);
-      return open;
+      return this.openNative(vaultId);
     }
     const { slot, keys } = await cryptoClient.createSlot(pin, 'main', vaultId, params);
     writeMeta({ v: 1, platform: 'web', ring: { v: 1, slots: [slot] } });
@@ -214,7 +212,10 @@ export const vaultService = {
   async openNative(vaultId: string): Promise<OpenVault> {
     const { cipherVersion } = await ArizoSqlCipher.open({ vaultId });
     if (cipherVersion === '') throw new Error('SQLCIPHER_INACTIVE');
-    return { db: await SqlVaultAdapter.open(sqlCipherExecutor(), 'android-sqlcipher'), vaultId, kind: 'main' };
+    const db = await SqlVaultAdapter.open(sqlCipherExecutor(), 'android-sqlcipher');
+    // Idempotent: also repairs a vault whose first open failed after the key slot was written.
+    await seedCategories(db);
+    return { db, vaultId, kind: 'main' };
   },
 
   /** Lock: close the DB, drop native key material, kill the crypto worker heap. */

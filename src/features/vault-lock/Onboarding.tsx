@@ -77,6 +77,8 @@ export function Onboarding() {
                 setOpen(v);
                 setPin(p);
                 setStep('warn');
+              } catch {
+                setError(t('lock.failed'));
               } finally {
                 setBusy(false);
               }

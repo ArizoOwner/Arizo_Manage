@@ -68,9 +68,17 @@ class ArizoSqlCipherPlugin : Plugin() {
                 opened.close()
                 throw IllegalStateException("SQLCipher not active")
             }
-            opened.rawQuery("PRAGMA journal_mode = WAL", arrayOf<String>()).use { it.moveToFirst() }
-            opened.execSQL("PRAGMA secure_delete = ON")
-            opened.execSQL("PRAGMA foreign_keys = ON")
+            // Every PRAGMA goes through rawQuery: SQLCipher's execSQL throws "Queries can be performed using
+            // SQLiteDatabase query or rawQuery methods only" for a statement that returns a row, and
+            // `secure_delete = ON` returns one. That made every open fail, so the vault never opened.
+            try {
+                for (p in listOf("PRAGMA journal_mode = WAL", "PRAGMA secure_delete = ON", "PRAGMA foreign_keys = ON")) {
+                    opened.rawQuery(p, arrayOf<String>()).use { it.moveToFirst() }
+                }
+            } catch (e: Exception) {
+                opened.close()
+                throw e
+            }
             db = opened
             call.resolve(JSObject().put("cipherVersion", cipher))
         } finally {

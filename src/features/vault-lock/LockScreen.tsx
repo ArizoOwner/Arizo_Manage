@@ -52,6 +52,9 @@ export function LockScreen() {
       else if (res === 'locked') setError(t('lock.lockedFor', { s: localDigits(Math.ceil(remainingLockMs(useVault.getState().lockout, Date.now()) / 1000), lang) }));
       else if (res === 'wiped') setError(t('lock.wiped'));
       setNow(Date.now());
+    } catch {
+      // A native or storage failure must never look like a frozen pad (device report after Phase 9).
+      setError(t('lock.failed'));
     } finally {
       setBusy(false);
     }

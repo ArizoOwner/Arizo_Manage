@@ -58,13 +58,14 @@ class MainActivity : BridgeActivity() {
     override fun onPause() {
         super.onPause()
         // Lock signal for the web layer: the JS AutoLockManager shows the curtain and starts its timer.
-        bridge?.triggerWindowJSEvent("arizoNativePause")
+        bridge?.eval("window.Capacitor?.triggerEvent && window.Capacitor.triggerEvent('arizoNativePause', 'window')") {}
     }
 
     override fun onResume() {
         super.onResume()
         // Lifts the privacy curtain (and lets the JS side decide whether the hidden time locked the vault).
-        bridge?.triggerWindowJSEvent("arizoNativeResume")
+        // The first onResume runs before the page has loaded Capacitor; guard so it is not a JS error.
+        bridge?.eval("window.Capacitor?.triggerEvent && window.Capacitor.triggerEvent('arizoNativeResume', 'window')") {}
     }
 
     /** Called by ArizoSecurityPlugin for the user's temporary 2-minute screenshot allowance. */

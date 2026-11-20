@@ -191,9 +191,11 @@ export function BackupScreen() {
               setSnap(null);
               if (!f) return;
               if (f.size > MAX_FILE) return setMsg({ ok: false, text: t('backup.err.BACKUP_TOO_LARGE') });
+              setFile(null); // hide the secret form until the new file is read
+              const bytes = new Uint8Array(await f.arrayBuffer());
               setSecretKind('passphrase');
               setSecret('');
-              setFile(new Uint8Array(await f.arrayBuffer()));
+              setFile(bytes);
             }}
           />
         </label>

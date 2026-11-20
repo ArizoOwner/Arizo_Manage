@@ -57,3 +57,24 @@ export function dayStarts(from: number, to: number, tz = DEFAULT_TZ): number[] {
   out.push(to);
   return out;
 }
+
+export type StatementSpan = 'week' | 'month' | 'year';
+
+/**
+ * The statement window `offset` steps back from the one holding `now` (0 = current):
+ * a Saturday-first (Jalali) or Monday-first (Gregorian) week, a calendar month, or a calendar year.
+ * Half-open [start, end), local midnights in `tz`.
+ */
+export function statementRange(span: StatementSpan, now: number, offset: number, cal: CalendarKind, tz = DEFAULT_TZ): Range {
+  if (span === 'month') {
+    const p = shiftPeriod(periodAt(now, cal, tz), offset, tz);
+    return { start: p.start, end: p.end };
+  }
+  if (span === 'year') {
+    const y = toCalendarDate(now, cal, tz).y + offset;
+    return { start: startOfCalendarDay({ y, m: 1, d: 1 }, cal, tz), end: startOfCalendarDay({ y: y + 1, m: 1, d: 1 }, cal, tz) };
+  }
+  const w = weekRange(now, cal === 'jalali' ? 'sat' : 'mon', tz);
+  const first = addDays(toCalendarDate(w.start, 'gregorian', tz), offset * 7, 'gregorian');
+  return { start: startOfCalendarDay(first, 'gregorian', tz), end: startOfCalendarDay(addDays(first, 7, 'gregorian'), 'gregorian', tz) };
+}

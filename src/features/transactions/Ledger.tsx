@@ -121,6 +121,9 @@ export function Ledger() {
       title={t('ledger.title')}
       actions={
         <>
+          <IconButton label={t('batch.open')} onClick={() => nav('/statements')}>
+            <Icon d={ICONS.printer} />
+          </IconButton>
           <IconButton label={t('ledger.trash')} onClick={() => nav('/trash')}>
             <Icon d={ICONS.trash} />
           </IconButton>

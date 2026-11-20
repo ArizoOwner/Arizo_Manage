@@ -5,6 +5,9 @@ import { expect, test, type Page } from '@playwright/test';
 // categories CRUD work end to end; the dashboard shows the budget snapshot.
 const PIN = '482916';
 
+// blob:/data: URLs are in-page and never reach the network.
+const LOCAL = /^(http:\/\/localhost:4173|blob:http:\/\/localhost:4173\/|data:)/;
+
 async function typePin(page: Page, pin: string) {
   await expect(page.getByTestId('pin-pad').last()).toHaveAttribute('data-busy', 'false', { timeout: 20_000 });
   for (const d of pin) await page.keyboard.press(d);
@@ -36,7 +39,7 @@ function guard(page: Page) {
     if (m.type() === 'error' || /Content Security Policy|Refused to/i.test(m.text())) problems.push(m.text());
   });
   page.on('request', (r) => {
-    if (!r.url().startsWith('http://localhost:4173')) external.push(r.url());
+    if (!LOCAL.test(r.url())) external.push(r.url());
   });
   return { problems, external };
 }
@@ -59,8 +62,10 @@ for (const lang of ['fa', 'en'] as const) {
     await noOverflow(page);
 
     // Scrub the net worth spline: crosshair tooltip appears.
+    await page.getByTestId('networth-chart').locator('svg').scrollIntoViewIfNeeded();
     const box = (await page.getByTestId('networth-chart').locator('svg').boundingBox())!;
-    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
+    // A tap is what a phone does (pointerdown); on desktop Chromium it is the same handler.
+    await page.touchscreen.tap(box.x + box.width * 0.5, box.y + box.height / 2);
     await expect(page.getByTestId('chart-tooltip')).toBeVisible();
 
     // Drill down into the largest category.

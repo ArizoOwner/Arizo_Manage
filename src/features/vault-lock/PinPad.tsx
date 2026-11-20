@@ -1,7 +1,7 @@
 // Luxury tactile PIN pad. Digits are typed into a local buffer and handed to `onSubmit` as one string;
 // the buffer is cleared right after. Physical keyboard digits work too (desktop / hardware keyboards).
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../app/stores/settings';
 import { localDigits } from '../../core/i18n/format';
@@ -30,7 +30,8 @@ export function PinPad({ onSubmit, error, disabled, extra, submitLabel }: PinPad
 
   useEffect(() => {
     if (!error) return;
-    setPin('');
+    // No setPin('') here: submit() already emptied the pad. This effect runs after paint, so clearing
+    // again wiped the first digits of the next try when the user typed straight after a wrong PIN.
     haptic.medium();
     if (!reduce) void shake.start({ x: [0, -12, 12, -8, 8, 0], transition: { duration: 0.4 } });
   }, [error, reduce, shake]);
@@ -51,17 +52,22 @@ export function PinPad({ onSubmit, error, disabled, extra, submitLabel }: PinPad
     [disabled],
   );
 
-  useEffect(() => {
+  // One listener for the pad's lifetime: re-adding it on every digit let fast typing on WebKit
+  // land between remove and add, so digits were dropped.
+  const keys = useRef({ press, submit });
+  keys.current = { press, submit };
+  // Layout effect: attached before the pad is painted, so the first keys after a reload are not lost.
+  useLayoutEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement | null)?.tagName === 'INPUT') return;
       const d = toAsciiDigits(e.key);
-      if (/^[0-9]$/.test(d)) press(d);
+      if (/^[0-9]$/.test(d)) keys.current.press(d);
       else if (e.key === 'Backspace') setPin((p) => p.slice(0, -1));
-      else if (e.key === 'Enter') submit();
+      else if (e.key === 'Enter') keys.current.submit();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [press, submit]);
+  }, []);
 
   const shown = Math.max(PIN_MIN, pin.length);
   return (

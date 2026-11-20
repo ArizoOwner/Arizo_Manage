@@ -193,3 +193,46 @@ test('CSV import wizard: map, preview with errors and duplicates, post once', as
   expect(g.problems).toEqual([]);
   expect(g.external).toEqual([]);
 });
+
+test('batch statements from the ledger: week/month/year, per-bank selection, one account per printed sheet', async ({ page }) => {
+  const g = guard(page);
+  await onboardDemo(page);
+  await page.getByRole('link', { name: 'دفتر' }).click();
+  await page.getByRole('button', { name: 'صورتحساب گروهی' }).click();
+  await expect(page.getByRole('heading', { name: 'صورتحساب گروهی', level: 1 })).toBeVisible();
+
+  const accounts = page.getByTestId('batch-account');
+  const total = await accounts.count();
+  expect(total).toBeGreaterThan(1);
+  const docs = page.getByTestId('paper-preview').getByTestId('statement-doc');
+  await expect(docs).toHaveCount(total); // every account by default
+
+  // None, then one bank: only that bank's accounts are printed.
+  await page.getByRole('button', { name: 'هیچ', exact: true }).click();
+  await expect(page.getByTestId('batch-count')).toHaveText('دست‌کم یک حساب انتخاب کنید');
+  await expect(page.getByTestId('paper-preview')).toHaveCount(0);
+  const firstBank = page.getByTestId('batch-accounts').locator('fieldset').first();
+  const inBank = await firstBank.getByTestId('batch-account').count();
+  await firstBank.getByTestId('batch-bank').check();
+  await expect(docs).toHaveCount(inBank);
+
+  // Yearly and weekly windows, and stepping back a period.
+  await page.getByRole('radio', { name: 'سالانه' }).click();
+  await expect(page.getByTestId('batch-period')).toContainText('۱ فروردین');
+  await page.getByRole('radio', { name: 'هفتگی' }).click();
+  const thisWeek = await page.getByTestId('batch-period').textContent();
+  await page.getByRole('button', { name: 'دورهٔ قبل' }).click();
+  await expect(page.getByTestId('batch-period')).not.toHaveText(thisWeek!);
+  await page.getByRole('radio', { name: 'ماهانه' }).click();
+
+  // The hidden print copy holds the same statements, each on its own sheet.
+  await page.getByRole('button', { name: 'همه', exact: true }).click();
+  const printed = page.locator('.print-portal .doc-batch > .doc');
+  await expect(printed).toHaveCount(total);
+  await page.emulateMedia({ media: 'print' });
+  expect(await printed.nth(1).evaluate((el) => getComputedStyle(el).breakBefore)).toBe('page');
+  await page.emulateMedia({ media: 'screen' });
+  await noOverflow(page);
+  expect(g.external).toEqual([]);
+  expect(g.problems).toEqual([]);
+});

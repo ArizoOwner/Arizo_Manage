@@ -4,6 +4,9 @@ import { expect, test, type Page } from '@playwright/test';
 // worker; Argon2 cost is lowered only in this E2E build). Each test starts from an empty profile.
 const PIN = '482916';
 
+// blob:/data: URLs are in-page and never reach the network.
+const LOCAL = /^(http:\/\/localhost:4173|blob:http:\/\/localhost:4173\/|data:)/;
+
 async function typePin(page: Page, pin: string) {
   // The pad is disabled while Argon2 checks the previous attempt; keys pressed then are dropped.
   await expect(page.getByTestId('pin-pad').last()).toHaveAttribute('data-busy', 'false', { timeout: 20_000 });
@@ -36,7 +39,7 @@ function guard(page: Page) {
     if (m.type() === 'error') problems.push(m.text());
   });
   page.on('request', (r) => {
-    if (!r.url().startsWith('http://localhost:4173')) external.push(r.url());
+    if (!LOCAL.test(r.url())) external.push(r.url());
   });
   return { problems, external };
 }

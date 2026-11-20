@@ -13,7 +13,7 @@ import { LoansScreen } from '../features/obligations/Loans';
 import { DebtsScreen } from '../features/obligations/Debts';
 import { SmsCenter } from '../features/sms-intelligence/SmsCenter';
 import { BusinessProfileScreen, CatalogScreen, InvoiceDetail, InvoiceEditor, InvoicesScreen } from '../features/invoices/InvoiceStudio';
-import { ExportScreen, ImportScreen, StatementScreen } from '../features/invoices/LedgerTools';
+import { BatchStatementScreen, ExportScreen, ImportScreen, StatementScreen } from '../features/invoices/LedgerTools';
 import { BackupScreen } from '../features/backup/BackupScreen';
 
 // Hash routing: required for static zero-server hosting. `#/sms-ingest?d=` is consumed and wiped in
@@ -34,6 +34,7 @@ export const router = createHashRouter([
       { path: 'accounts/new', element: <AccountNew /> },
       { path: 'accounts/:id', element: <AccountDetail /> },
       { path: 'accounts/:id/statement', element: <StatementScreen /> },
+      { path: 'statements', element: <BatchStatementScreen /> },
       { path: 'rates', element: <RatesScreen /> },
       { path: 'analytics', element: <AnalyticsScreen /> },
       { path: 'budgets', element: <BudgetsScreen /> },

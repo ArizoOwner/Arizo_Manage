@@ -8,7 +8,7 @@ import { usePrivacy } from '../../app/stores/privacy';
 import { useSettings } from '../../app/stores/settings';
 import { mutate } from '../../app/stores/vault';
 import { useVaultQuery } from '../../app/useVaultQuery';
-import { periodAt, shiftPeriod } from '../../core/analytics/periods';
+import { periodAt, shiftPeriod, statementRange, type StatementSpan } from '../../core/analytics/periods';
 import { formatMinor } from '../../core/currency/money';
 import { csvBytes, parseCsv, type Cell } from '../../core/exports/csv';
 import { commitImport, guessMapping, previewImport, type ColumnMap, type ImportField, type PreviewRow } from '../../core/exports/csvImport';
@@ -16,7 +16,8 @@ import { dateCell, EXPORT_HEADERS, exportableTxs, ledgerRows, timeCell } from '.
 import { buildStatement } from '../../core/exports/statement';
 import { xlsxInWorker } from '../../core/exports/xlsxClient';
 import { formatDate, formatMoney, localDigits } from '../../core/i18n/format';
-import { monthName } from '../../core/calendar/calendar';
+import { monthName, toCalendarDate } from '../../core/calendar/calendar';
+import { bankByCode } from '../../core/data/banks';
 import { deliverFile } from '../../core/print/deliver';
 import type { Account, Category, Transaction } from '../../core/storage/schema';
 import { Button, Card, Screen, Segmented, Sheet, Toggle } from '../../core/ui/ui';
@@ -302,6 +303,119 @@ export function ImportScreen() {
         <p role="status" className="rounded-2xl bg-surface-2 p-3 text-[14px] font-semibold text-emerald-text" data-testid="import-done">
           {t('import.done', { n: localDigits(done.posted, lang), s: localDigits(done.skipped, lang) })}
         </p>
+      )}
+    </Screen>
+  );
+}
+
+/**
+ * Batch statements (#/statements): pick a week, month or year and any set of accounts and cards
+ * (one tap selects every account of a bank), then print them in one job (one account per sheet),
+ * save as PDF through the system print dialog, or export one PNG per account.
+ */
+export function BatchStatementScreen() {
+  const { t } = useTranslation();
+  const doc = useDocLang();
+  const cal = useSettings((s) => s.calendar);
+  const [span, setSpan] = useState<StatementSpan>('month');
+  const [offset, setOffset] = useState(0);
+  const [paper, setPaper] = useState<Paper>('A4');
+  const [picked, setPicked] = useState<Set<string> | null>(null);
+  const { data } = useVaultQuery(async (db) => ({ accounts: await db.find('accounts'), txs: await db.find('transactions'), categories: await db.find('categories') }), []);
+  const range = useMemo(() => statementRange(span, Date.now(), offset, cal), [span, offset, cal]);
+  const accounts = useMemo(() => liveAccounts(data?.accounts), [data]);
+  const chosen = picked ?? new Set(accounts.map((a) => a.id));
+  const groups = useMemo(() => {
+    const m = new Map<string, Account[]>();
+    for (const a of accounts) m.set(a.bank_code ?? '', [...(m.get(a.bank_code ?? '') ?? []), a]);
+    return [...m];
+  }, [accounts]);
+  const statements = useMemo(() => (data ? accounts.filter((a) => chosen.has(a.id)).map((a) => buildStatement(a, data.txs, range.start, range.end)) : []), [data, accounts, chosen, range]);
+  if (!data) return null;
+  const toggle = (ids: string[], on: boolean) => {
+    const next = new Set(chosen);
+    for (const id of ids) on ? next.add(id) : next.delete(id);
+    setPicked(next);
+  };
+  const label = `${formatDate(range.start, cal, doc.lang)} – ${formatDate(range.end - 1, cal, doc.lang)}`;
+  const fileName = `statements-${span}-${toCalendarDate(range.start, cal).y}`;
+  return (
+    <Screen title={t('batch.title')} actions={<BackButton />}>
+      <Segmented<StatementSpan>
+        label={t('batch.range')}
+        value={span}
+        onChange={(s) => (setSpan(s), setOffset(0))}
+        options={[
+          { value: 'week', label: t('batch.week') },
+          { value: 'month', label: t('batch.month') },
+          { value: 'year', label: t('batch.year') },
+        ]}
+      />
+      <Card className="flex items-center justify-between gap-2">
+        <Button variant="ghost" className="!min-h-11 !px-3" onClick={() => setOffset((o) => o - 1)} aria-label={t('batch.prev')}>
+          <span className="rtl:rotate-180">‹</span>
+        </Button>
+        <span className="text-center text-[15px] font-bold" data-testid="batch-period">
+          {label}
+        </span>
+        <Button variant="ghost" className="!min-h-11 !px-3" onClick={() => setOffset((o) => Math.min(0, o + 1))} disabled={offset >= 0} aria-label={t('batch.next')}>
+          <span className="rtl:rotate-180">›</span>
+        </Button>
+      </Card>
+      <Card className="flex flex-col gap-3" data-testid="batch-accounts">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-[15px] font-bold">{t('batch.accounts')}</h2>
+          <div className="flex gap-1">
+            <Button variant="ghost" className="!min-h-10 !px-3 text-[13px]" onClick={() => setPicked(new Set(accounts.map((a) => a.id)))}>
+              {t('batch.all')}
+            </Button>
+            <Button variant="ghost" className="!min-h-10 !px-3 text-[13px]" onClick={() => setPicked(new Set())}>
+              {t('batch.none')}
+            </Button>
+          </div>
+        </div>
+        {groups.map(([code, list]) => {
+          const bank = bankByCode(code);
+          const ids = list.map((a) => a.id);
+          const all = ids.every((id) => chosen.has(id));
+          return (
+            <fieldset key={code || 'none'} className="flex flex-col gap-1 rounded-2xl bg-surface-2 p-3">
+              <legend className="sr-only">{bank ? (doc.lang === 'fa' ? bank.name_fa : bank.name_en) : t('batch.noBank')}</legend>
+              <label className="flex min-h-11 items-center gap-3 font-semibold">
+                <input type="checkbox" className="h-5 w-5 accent-[var(--arizo-gold)]" checked={all} onChange={(e) => toggle(ids, e.target.checked)} aria-label={t('batch.bank')} data-testid="batch-bank" />
+                <span>{bank ? (doc.lang === 'fa' ? bank.name_fa : bank.name_en) : t('batch.noBank')}</span>
+              </label>
+              {list.map((a) => (
+                <label key={a.id} className="flex min-h-11 items-center gap-3 ps-8 text-[14px]">
+                  <input type="checkbox" className="h-5 w-5 accent-[var(--arizo-gold)]" checked={chosen.has(a.id)} onChange={(e) => toggle([a.id], e.target.checked)} data-testid="batch-account" />
+                  <span className="grow">{a.name}</span>
+                  {a.card_last4 && <span className="num text-ink-2" dir="ltr">•• {localDigits(a.card_last4, doc.lang)}</span>}
+                </label>
+              ))}
+            </fieldset>
+          );
+        })}
+        <p className="text-[13px] text-ink-2" role="status" data-testid="batch-count">
+          {statements.length ? t('batch.selected', { n: localDigits(statements.length, doc.lang) }) : t('batch.pick')}
+        </p>
+      </Card>
+      {statements.length > 0 && (
+        <>
+          <DocActions
+            name={fileName}
+            papers={['A4', 'A5']}
+            paper={paper}
+            onPaper={setPaper}
+            render={(p) => (
+              <div className="doc-batch">
+                {statements.map((s) => (
+                  <StatementDoc key={s.account.id} s={s} categories={data.categories} paper={p} lang={doc.lang} unit={doc.unit} cal={cal} />
+                ))}
+              </div>
+            )}
+          />
+          <p className="text-[13px] text-ink-2">{t('batch.pdfHint')}</p>
+        </>
       )}
     </Screen>
   );

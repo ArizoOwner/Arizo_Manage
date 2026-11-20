@@ -1,12 +1,15 @@
 import { expect, test } from '@playwright/test';
 
 // Phase 0 smoke: the production build boots under the strict CSP, RTL, self-hosted fonts, no overflow.
+// blob:/data: URLs are in-page and never reach the network.
+const LOCAL = /^(http:\/\/localhost:4173|blob:http:\/\/localhost:4173\/|data:)/;
+
 test('boots under strict CSP in Persian RTL', async ({ page }) => {
   const problems: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error') problems.push(m.text()); });
   page.on('pageerror', (e) => problems.push(e.message));
   const external: string[] = [];
-  page.on('request', (r) => { if (!r.url().startsWith('http://localhost:4173')) external.push(r.url()); });
+  page.on('request', (r) => { if (!LOCAL.test(r.url())) external.push(r.url()); });
 
   await page.goto('/');
   // A fresh profile boots into onboarding.

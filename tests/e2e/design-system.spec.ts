@@ -2,6 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 
 // Phase 2 gate: the Design Gallery renders at 390x844 in Persian RTL and English LTR, in both
 // themes, with zero horizontal overflow, zero console/CSP errors and zero external requests.
+// blob:/data: URLs are in-page and never reach the network.
+const LOCAL = /^(http:\/\/localhost:4173|blob:http:\/\/localhost:4173\/|data:)/;
+
 async function open(page: Page, lang: 'fa' | 'en', theme: 'obsidian' | 'alabaster') {
   await page.addInitScript(
     ([l, t]) => localStorage.setItem('arizo.settings.v1', JSON.stringify({ lang: l, theme: t, calendar: l === 'fa' ? 'jalali' : 'gregorian', irrUnit: 'toman' })),
@@ -11,7 +14,7 @@ async function open(page: Page, lang: 'fa' | 'en', theme: 'obsidian' | 'alabaste
   page.on('console', (m) => { if (m.type() === 'error') problems.push(m.text()); });
   page.on('pageerror', (e) => problems.push(e.message));
   const external: string[] = [];
-  page.on('request', (r) => { if (!r.url().startsWith('http://localhost:4173')) external.push(r.url()); });
+  page.on('request', (r) => { if (!LOCAL.test(r.url())) external.push(r.url()); });
   await page.goto('/#/gallery');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   return { problems, external };
@@ -43,7 +46,7 @@ for (const lang of ['fa', 'en'] as const) {
       const font = lang === 'fa' ? 'Vazirmatn' : 'Plus Jakarta Sans';
       expect(await page.evaluate(async (f) => { await document.fonts.ready; return document.fonts.check(`16px "${f}"`); }, font)).toBe(true);
       await noHorizontalOverflow(page);
-      await page.mouse.wheel(0, 4000);
+      await page.evaluate(() => window.scrollBy(0, 4000)); // mobile WebKit has no wheel
       await noHorizontalOverflow(page);
       expect(problems).toEqual([]);
       expect(external).toEqual([]);

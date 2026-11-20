@@ -93,3 +93,7 @@
   .print-portal { display: block !important; }
   .print-portal .doc { width: auto; min-height: 0; padding: 0; }
 }
+
+/* Batch statements: each account starts on a new sheet. */
+.doc-batch > .doc + .doc { break-before: page; page-break-before: always; }
+@media screen { .doc-batch > .doc + .doc { margin-top: 12px; } }

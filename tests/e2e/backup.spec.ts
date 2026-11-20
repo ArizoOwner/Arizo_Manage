@@ -82,7 +82,7 @@ test('backup: recovery key, encrypted file, tamper + wrong passphrase, dry run, 
 
   // The dashboard reminds; the Security Center shows "never" and leads to the Backup screen.
   await expect(page.getByTestId('backup-due')).toBeVisible();
-  await page.goto('/#/settings');
+  await page.evaluate(() => { location.hash = '#/settings'; });
   await expect(page.getByTestId('settings-backup')).toContainText('هرگز');
   await page.getByTestId('settings-backup').click();
   await expect(page.getByRole('heading', { level: 1, name: 'پشتیبان‌گیری و بازیابی' })).toBeVisible();
@@ -97,6 +97,7 @@ test('backup: recovery key, encrypted file, tamper + wrong passphrase, dry run, 
   // Recovery Key: 24 words, then three of them typed back.
   await page.getByTestId('recovery-setup').click();
   await reauth(page);
+  await expect(page.getByTestId('recovery-words').locator('li')).toHaveCount(24);
   const words = (await page.getByTestId('recovery-words').locator('li').allInnerTexts()).map((s) => s.replace(/^\d+\.\s*/, '').trim());
   expect(words).toHaveLength(24);
   await page.getByTestId('recovery-next').click();
@@ -139,7 +140,7 @@ test('backup: recovery key, encrypted file, tamper + wrong passphrase, dry run, 
   const other = await browser.newContext({ viewport: { width: 390, height: 844 }, acceptDownloads: true });
   const p2 = await other.newPage();
   await onboard(p2, 'fa', false);
-  await p2.goto('/#/backup');
+  await p2.evaluate(() => { location.hash = '#/backup'; });
   const otherPass = 'یک عبارت عبور دیگر برای تست';
   const smallFile = await makeBackup(p2, otherPass);
   const smallCopy = info.outputPath('small.arizo');
@@ -152,15 +153,15 @@ test('backup: recovery key, encrypted file, tamper + wrong passphrase, dry run, 
   await page.getByTestId('restore-apply').click();
   await reauth(page);
   await expect(page.getByTestId('backup-message')).toContainText('بازیابی شد');
-  await page.goto('/#/accounts');
+  await page.evaluate(() => { location.hash = '#/accounts'; });
   await expect(page.getByTestId('account-row')).toHaveCount(1);
 
   // The pre-restore safety snapshot brings the demo vault back.
-  await page.goto('/#/backup');
+  await page.evaluate(() => { location.hash = '#/backup'; });
   await page.getByTestId('snapshot-row').first().getByRole('button').click();
   await reauth(page);
   await expect(page.getByTestId('backup-message')).toContainText('بازیابی شد');
-  await page.goto('/#/accounts');
+  await page.evaluate(() => { location.hash = '#/accounts'; });
   await expect.poll(() => page.getByTestId('account-row').count()).toBeGreaterThan(1);
 
   expect(g.problems).toEqual([]);

@@ -46,7 +46,8 @@ function useScrub(n: number, rtl: boolean) {
       onPointerMove: (e: PointerEvent<SVGSVGElement>) => {
         if (e.buttons || e.pointerType === 'mouse') fromPointer(e);
       },
-      onPointerLeave: () => set(null),
+      // A finger "leaves" the moment it lifts, so on touch the reading stays until the next tap.
+      onPointerLeave: (e: PointerEvent<SVGSVGElement>) => e.pointerType === 'mouse' && set(null),
       onPointerCancel: () => set(null),
       onKeyDown: (e: KeyboardEvent<SVGSVGElement>) => {
         const fwd = rtl ? 'ArrowLeft' : 'ArrowRight';

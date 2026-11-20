@@ -1,0 +1,95 @@
+/*
+ * Paper documents (invoices, receipts, statements). Paper is always black ink on white, whatever the app
+ * theme. Sizes are in mm/pt so the on-screen preview (scaled to fit) and the printed page share one layout.
+ * Printing: everything except .print-portal is removed, @page (set per paper by <PrintPortal>) gives the
+ * size and margins, and the document drops its preview padding. Fonts are the self-hosted Vazirmatn / Plus Jakarta.
+ */
+.doc {
+  box-sizing: border-box;
+  background: #fff;
+  color: #111318;
+  font-family: 'Vazirmatn', 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  overflow-wrap: anywhere;
+}
+.doc *,
+.doc *::before,
+.doc *::after {
+  box-sizing: border-box;
+}
+.doc-A4 { width: 210mm; min-height: 297mm; padding: 12mm; }
+.doc-A5 { width: 148mm; min-height: 210mm; padding: 9mm; font-size: 8.5pt; }
+.doc-80 { width: 80mm; padding: 3mm; font-size: 8.5pt; }
+.doc-58 { width: 58mm; padding: 2mm; font-size: 7.5pt; }
+.doc h2, .doc h3, .doc p { margin: 0; }
+.doc .muted { color: #4a505c; }
+.doc .num { direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+.doc .row { display: flex; justify-content: space-between; gap: 3mm; }
+.doc .grow { flex: 1 1 0; min-width: 0; }
+.doc table { width: 100%; border-collapse: collapse; }
+.doc th, .doc td { padding: 1.4mm 1.6mm; text-align: start; vertical-align: top; }
+.doc td.n, .doc th.n { text-align: end; white-space: nowrap; }
+.doc thead { display: table-header-group; }
+.doc tr { break-inside: avoid; }
+.doc .words { font-weight: 600; }
+.doc .qr svg { display: block; width: 24mm; height: 24mm; }
+.doc .sig img { max-height: 18mm; max-width: 45mm; object-fit: contain; }
+.doc .logo { max-height: 16mm; max-width: 40mm; object-fit: contain; }
+.doc .box { border: 0.3mm solid #c9ced8; border-radius: 2mm; padding: 2.5mm 3mm; }
+.doc .stack > * + * { margin-top: 3mm; }
+.doc .totals { margin-inline-start: auto; width: 62%; }
+.doc .totals .row { padding: 0.8mm 0; }
+.doc .grand { font-size: 1.25em; font-weight: 800; }
+.doc .badge { display: inline-block; border: 0.3mm solid currentColor; border-radius: 1.5mm; padding: 0 1.5mm; font-size: 0.85em; font-weight: 700; }
+
+/* Minimal Modern: whitespace, hairlines, one accent. */
+.t-minimal .doc-title { font-size: 20pt; font-weight: 800; letter-spacing: -0.01em; }
+.t-minimal thead th { border-bottom: 0.4mm solid #111318; font-weight: 700; }
+.t-minimal tbody td { border-bottom: 0.2mm solid #e1e4ea; }
+.t-minimal .accent { color: #00704f; }
+
+/* Classic Official (رسمی): ruled grid, framed party boxes, signature and stamp cells. */
+.t-official .doc-title { font-size: 14pt; font-weight: 800; text-align: center; }
+.t-official .frame { border: 0.4mm solid #111318; }
+.t-official .frame-title { background: #eceef2; border-bottom: 0.4mm solid #111318; padding: 1mm 3mm; font-weight: 700; }
+.t-official table th, .t-official table td { border: 0.3mm solid #111318; }
+.t-official thead th { background: #eceef2; font-weight: 700; text-align: center; }
+.t-official .stamp { border: 0.3mm dashed #4a505c; min-height: 22mm; padding: 2mm; }
+
+/* Bold Brand: dark band with champagne accent and a large total. */
+.t-bold .band { background: #0b0f17; color: #f4efe3; border-radius: 3mm; padding: 5mm 6mm; }
+.t-bold .band .muted { color: #c9c2b0; }
+.t-bold .doc-title { font-size: 22pt; font-weight: 900; color: #e6c47a; }
+.t-bold thead th { background: #0b0f17; color: #f4efe3; font-weight: 700; }
+.t-bold tbody tr:nth-child(even) td { background: #f5f3ee; }
+.t-bold .grand { font-size: 1.6em; color: #6b4e0e; }
+
+/* Thermal (58/80 mm): one column, dashed rules, nothing wider than the roll. */
+.t-thermal { text-align: center; }
+.t-thermal .doc-title { font-size: 1.35em; font-weight: 800; }
+.t-thermal .rule { border-top: 0.3mm dashed #111318; margin: 2mm 0; }
+.t-thermal table th, .t-thermal table td { padding: 0.6mm 0; }
+.t-thermal td, .t-thermal th { text-align: start; }
+.t-thermal .totals { width: 100%; }
+.t-thermal .qr svg { margin: 0 auto; width: 22mm; height: 22mm; }
+
+/* Statement */
+.doc .stmt-chart svg { display: block; width: 100%; height: 30mm; }
+.doc .stmt td, .doc .stmt th { border-bottom: 0.2mm solid #e1e4ea; }
+.doc .stmt thead th { border-bottom: 0.4mm solid #111318; font-weight: 700; }
+.doc .neg { color: #a3123a; }
+.doc .pos { color: #00704f; }
+
+/* On screen the print copy is not rendered at all (no layout, no accessibility tree). */
+.print-portal { display: none; }
+
+@media print {
+  html, body { background: #fff !important; }
+  body > :not(.print-portal) { display: none !important; }
+  .print-portal { display: block !important; }
+  .print-portal .doc { width: auto; min-height: 0; padding: 0; }
+}

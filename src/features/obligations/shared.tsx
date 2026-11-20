@@ -26,9 +26,9 @@ export function AmountField({ label, currency, value, onChange, testId }: { labe
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="flex min-h-12 items-center justify-between rounded-2xl bg-surface-3 px-4 text-[15px]" data-testid={testId}>
-        <span className="text-ink-2">{label}</span>
-        <span className="font-bold tabular">{value !== null ? formatMoney(value, currency, lang, irrUnit) : '—'}</span>
+      <button type="button" onClick={() => setOpen(true)} className="flex min-h-12 min-w-0 items-center justify-between gap-2 rounded-2xl bg-surface-3 px-4 text-[15px]" data-testid={testId}>
+        <span className="truncate text-ink-2">{label}</span>
+        <span className="truncate font-bold tabular">{value !== null ? formatMoney(value, currency, lang, irrUnit) : '—'}</span>
       </button>
       <Sheet open={open} onClose={() => setOpen(false)} title={label}>
         <CalculatorKeypad

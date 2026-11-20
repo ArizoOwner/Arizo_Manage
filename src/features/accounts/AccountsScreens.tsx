@@ -209,6 +209,9 @@ export function AccountDetail() {
           {a.is_archived ? t('accounts.unarchive') : t('accounts.archive')}
         </Button>
       </div>
+      <Button variant="secondary" className="text-[13px]" onClick={() => nav(`/accounts/${a.id}/statement`)} data-testid="account-statement">
+        {t('statement.open')}
+      </Button>
       <section className="flex flex-col gap-1">
         {txs.slice(0, 50).map((x) => (
           <div key={x.id} className="flex flex-col">

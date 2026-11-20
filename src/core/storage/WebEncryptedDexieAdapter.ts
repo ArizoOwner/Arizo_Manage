@@ -2,8 +2,8 @@
 // Cleartext on disk is only the row id (UUIDv7) and opaque HMAC tags for INDEXED fields.
 // AAD binds each ciphertext to its store and id, so rows cannot be swapped between records.
 import Dexie, { type Table } from 'dexie';
-import { buf, td, te } from '../crypto/bytes';
-import { indexTag, recordAad, type VaultKeys } from '../crypto/keyring';
+import { buf, td, te, toB64 } from '../crypto/bytes';
+import { blobAad, indexTag, recordAad, type VaultKeys } from '../crypto/keyring';
 import { open, seal } from '../crypto/primitives';
 import { decodeRow, encodeRow } from './codec';
 import { UniqueViolation, type Row, type Where } from './IVaultDatabase';
@@ -20,14 +20,19 @@ export interface SealedRow {
   c: Uint8Array<ArrayBuffer>;
 }
 
-export const WEB_DB_VERSION = 1;
+export const WEB_DB_VERSION = 2;
 export const webDbName = (vaultId: string) => `arizo-vault-${vaultId}`;
 
 class VaultDexie extends Dexie {
   constructor(name: string) {
     super(name);
     // Migrations: add `this.version(N).stores(...).upgrade(...)` here; never edit a shipped version.
-    this.version(WEB_DB_VERSION).stores(Object.fromEntries(STORE_NAMES.map((s) => [s, 'id, *ix, &*ux'])));
+    this.version(1).stores(Object.fromEntries(STORE_NAMES.map((s) => [s, 'id, *ix, &*ux'])));
+    // v2 (Phase 7): attachment ciphertext, keyed by attachment id.
+    this.version(2).stores({ blobs: 'id' });
+  }
+  blobs(): Table<{ id: string; c: Uint8Array<ArrayBuffer> }, string> {
+    return this.table('blobs');
   }
   t(store: StoreName): Table<SealedRow, string> {
     return this.table(store);
@@ -110,9 +115,27 @@ class DexieBackend implements RawBackend {
   }
 
   async clearAll(): Promise<void> {
-    await this.db.transaction('rw', STORE_NAMES.map((s) => this.db.t(s)), async () => {
+    await this.db.transaction('rw', [...STORE_NAMES.map((s) => this.db.t(s)), this.db.blobs()], async () => {
       for (const s of STORE_NAMES) await this.db.t(s).clear();
+      await this.db.blobs().clear();
     });
+  }
+
+  async putBlob(id: string, bytes: Uint8Array): Promise<{ nonce_b64: string }> {
+    const c = buf(await seal(this.keys.blob, bytes, blobAad(id)));
+    await this.db.blobs().put({ id, c });
+    return { nonce_b64: toB64(c.slice(0, 12)) };
+  }
+  async getBlob(id: string): Promise<Uint8Array | undefined> {
+    const r = await this.db.blobs().get(id);
+    return r ? open(this.keys.blob, r.c, blobAad(id)) : undefined;
+  }
+
+  rawBlobs() {
+    return this.db.blobs();
+  }
+  async deleteBlob(id: string): Promise<void> {
+    await this.db.blobs().delete(id);
   }
 
   async close(): Promise<void> {
@@ -141,5 +164,10 @@ export class WebEncryptedDexieAdapter extends StagedVault {
   /** Raw on-disk rows. Used by tests to prove no plaintext is stored and tampering is caught. */
   rawTable(store: StoreName): Table<SealedRow, string> {
     return this.dexie.raw(store);
+  }
+
+  /** Raw on-disk attachment ciphertext. Used by tests to prove blobs are sealed and bound to their id. */
+  rawBlobTable() {
+    return this.dexie.rawBlobs();
   }
 }

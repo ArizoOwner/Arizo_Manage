@@ -25,7 +25,7 @@ export function AppShell() {
     if (a === 'expense' || a === 'income' || a === 'transfer') setEntry(a);
     else if (a === 'cheque') nav('/cheques');
     else if (a === 'pasteSms') nav('/sms/paste');
-    // invoice belongs to Phase 7; the menu lists it for discovery only.
+    else if (a === 'invoice') nav('/invoices/new');
   };
 
   return (

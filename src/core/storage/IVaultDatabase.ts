@@ -21,6 +21,14 @@ export interface IVaultDatabase extends VaultTx {
   /** Atomic: either every write inside `fn` commits or none do. Nested calls join the outer tx. */
   transaction<T>(fn: (tx: VaultTx) => Promise<T>): Promise<T>;
   count<K extends StoreName>(store: K): Promise<number>;
+  /**
+   * Attachment bytes, kept outside the row stores and outside transactions (write the blob first, then
+   * the attachment row). Encrypted at rest by the adapter: web = AES-256-GCM with the vault blob key and
+   * AAD `arizo/blob/v1|<id>` (returns the nonce); Android = inside the SQLCipher file (nonce '').
+   */
+  putBlob(id: string, bytes: Uint8Array): Promise<{ nonce_b64: string }>;
+  getBlob(id: string): Promise<Uint8Array | undefined>;
+  deleteBlob(id: string): Promise<void>;
   /** Remove every row of every store (Wipe All Data, Replace restore). */
   clearAll(): Promise<void>;
   /** Close and drop key material. The instance is unusable afterwards. */

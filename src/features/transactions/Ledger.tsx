@@ -15,6 +15,7 @@ import { PrivacyBlur } from '../../core/motion/PrivacyBlur';
 import type { Transaction } from '../../core/storage/schema';
 import { Button, Icon, IconButton, ICONS, Screen } from '../../core/ui/ui';
 import { SignedMoney, signOf, TxRow } from './TxRow';
+import { ReceiptSheet } from '../invoices/LedgerTools';
 
 type Item = { kind: 'day'; key: string; day: number; total: bigint; currency: string } | { kind: 'tx'; key: string; tx: Transaction };
 type TypeFilter = 'all' | 'expense' | 'income' | 'transfer' | 'pending';
@@ -31,6 +32,7 @@ export function Ledger() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [undo, setUndo] = useState<{ ids: string[]; until: number } | null>(null);
+  const [receipt, setReceipt] = useState<Transaction | null>(null);
   const { data } = useVaultQuery(async (db) => {
     const [txs, accounts, cats, tags, links] = await Promise.all([db.find('transactions'), db.find('accounts'), db.find('categories'), db.find('tags'), db.find('transaction_tags')]);
     return { txs, accounts, cats, tags, links };
@@ -201,6 +203,11 @@ export function Ledger() {
                           {t('ledger.post')}
                         </Button>
                       )}
+                      {!selecting && it.tx.status === 'posted' && (
+                        <IconButton label={t('receipt.open')} onClick={() => setReceipt(it.tx)}>
+                          <Icon d={ICONS.receipt} className="h-5 w-5" />
+                        </IconButton>
+                      )}
                       {!selecting && (
                         <IconButton label={t('ledger.delete')} onClick={() => void remove([it.tx.id])}>
                           <Icon d={ICONS.trash} className="h-5 w-5" />
@@ -241,6 +248,7 @@ export function Ledger() {
           </Button>
         </div>
       )}
+      {receipt && data && <ReceiptSheet tx={receipt} accounts={data.accounts} categories={data.cats} onClose={() => setReceipt(null)} />}
     </Screen>
   );
 }

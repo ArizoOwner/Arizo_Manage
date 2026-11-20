@@ -20,6 +20,9 @@ export interface RawBackend {
   count(store: StoreName): Promise<number>;
   clearAll(): Promise<void>;
   close(): Promise<void>;
+  putBlob(id: string, bytes: Uint8Array): Promise<{ nonce_b64: string }>;
+  getBlob(id: string): Promise<Uint8Array | undefined>;
+  deleteBlob(id: string): Promise<void>;
 }
 
 export function matches(row: unknown, where: Record<string, unknown> | undefined): boolean {
@@ -104,6 +107,15 @@ export class StagedVault implements IVaultDatabase {
 
   count(store: StoreName): Promise<number> {
     return this.be().count(store);
+  }
+  putBlob(id: string, bytes: Uint8Array): Promise<{ nonce_b64: string }> {
+    return this.be().putBlob(id, bytes);
+  }
+  getBlob(id: string): Promise<Uint8Array | undefined> {
+    return this.be().getBlob(id);
+  }
+  deleteBlob(id: string): Promise<void> {
+    return this.be().deleteBlob(id);
   }
   clearAll(): Promise<void> {
     return this.be().clearAll();

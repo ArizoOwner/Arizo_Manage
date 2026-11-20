@@ -2,6 +2,7 @@
 // Layout: one table per store with `id` PK, one TEXT column per INDEXED field (type-tagged value),
 // UNIQUE indexes for UNIQUE fields, and the full row as lossless JSON in `data`.
 // Confidentiality comes from SQLCipher encrypting the whole file; rows are not field-encrypted here.
+import { fromB64, toB64 } from '../crypto/bytes';
 import { decodeRow, encodeRow } from './codec';
 import { UniqueViolation, type Row, type Where } from './IVaultDatabase';
 import { INDEXED, STORE_NAMES, UNIQUE, type StoreName } from './schema';
@@ -42,6 +43,8 @@ export const SQL_MIGRATIONS: { version: number; statements: () => string[] }[] =
         ];
       }),
   },
+  // Phase 7: attachment ciphertext (already AES-GCM sealed in JS; base64 because the bridge carries strings).
+  { version: 2, statements: () => ['CREATE TABLE IF NOT EXISTS vault_blobs (id TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL)'] },
 ];
 export const SQL_SCHEMA_VERSION = SQL_MIGRATIONS[SQL_MIGRATIONS.length - 1]!.version;
 
@@ -110,7 +113,20 @@ class SqlBackend implements RawBackend {
   }
 
   async clearAll(): Promise<void> {
-    await this.exec.batch(STORE_NAMES.map((s) => ({ sql: `DELETE FROM ${q(s)}`, params: [] })));
+    await this.exec.batch([...STORE_NAMES.map((s) => ({ sql: `DELETE FROM ${q(s)}`, params: [] })), { sql: 'DELETE FROM vault_blobs', params: [] }]);
+  }
+
+  /** SQLCipher encrypts the whole file, so the blob needs no second seal here (no nonce to report). */
+  async putBlob(id: string, bytes: Uint8Array): Promise<{ nonce_b64: string }> {
+    await this.exec.batch([{ sql: 'INSERT OR REPLACE INTO vault_blobs (id, data) VALUES (?, ?)', params: [id, toB64(bytes)] }]);
+    return { nonce_b64: '' };
+  }
+  async getBlob(id: string): Promise<Uint8Array | undefined> {
+    const r = (await this.exec.query('SELECT data FROM vault_blobs WHERE id = ?', [id]))[0];
+    return r ? fromB64(String(r.data)) : undefined;
+  }
+  async deleteBlob(id: string): Promise<void> {
+    await this.exec.batch([{ sql: 'DELETE FROM vault_blobs WHERE id = ?', params: [id] }]);
   }
 
   close(): Promise<void> {

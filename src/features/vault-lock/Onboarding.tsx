@@ -1,5 +1,6 @@
 // Guided onboarding (PROMPT.md §7 #1): language, calendar, unit → PIN (+confirm) → no-recovery
 // warning → biometrics → SMS note → first account (BIN auto-detect) or sample data.
+import { motion, useReducedMotion } from 'framer-motion';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../app/stores/settings';
@@ -16,6 +17,7 @@ export function Onboarding() {
   const { t } = useTranslation();
   const s = useSettings();
   const [step, setStep] = useState<Step>('welcome');
+  const reduce = useReducedMotion();
   const [first, setFirst] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -165,8 +167,17 @@ export function Onboarding() {
   })();
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]">
-      {body}
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 overflow-x-hidden px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      {/* Each step slides in from the reading direction's end. No exit animation: two steps on screen
+          at once would let a fast double tap hit the leaving step's button. */}
+      <motion.div
+        key={step}
+        initial={reduce || step === 'welcome' ? false : { opacity: 0, x: s.lang === 'fa' ? -36 : 36 }}
+        animate={{ opacity: 1, x: 0, transitionEnd: { transform: 'none' } }}
+        transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+      >
+        {body}
+      </motion.div>
       {busy && step === 'confirm' && (
         <p role="status" className="text-center text-[13px] text-ink-2">
           {t('onboarding.creating')}
@@ -180,7 +191,7 @@ function PinStep({ title, onSubmit, error, disabled }: { title: string; onSubmit
   return (
     <div className="flex flex-col items-center gap-6">
       <h2 className="text-center text-[18px] font-bold">{title}</h2>
-      <PinPad onSubmit={onSubmit} error={error} disabled={disabled ?? false} />
+      <PinPad onSubmit={onSubmit} error={error} disabled={disabled ?? false} working={disabled ?? false} />
     </div>
   );
 }

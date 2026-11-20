@@ -75,7 +75,7 @@ export function Segmented<T extends string | number>({ value, options, onChange,
 
 export function Card({ children, className = '', ...rest }: { children: ReactNode; className?: string } & Omit<React.HTMLAttributes<HTMLDivElement>, 'className' | 'children'>) {
   return (
-    <div {...rest} className={`rounded-3xl border border-hairline bg-surface-1 p-4 ${className}`}>
+    <div {...rest} className={`arizo-card rounded-[26px] border border-hairline p-4 ${className}`}>
       {children}
     </div>
   );
@@ -146,7 +146,7 @@ export function Screen({ title, actions, children }: { title: string; actions?: 
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
       <header className="flex min-h-12 items-center justify-between gap-3">
-        <h1 className="truncate text-[22px] font-extrabold">{title}</h1>
+        <h1 className="truncate text-[26px] leading-tight font-extrabold tracking-tight">{title}</h1>
         {actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
       </header>
       {children}
@@ -161,7 +161,7 @@ export function IconButton({ label, children, onClick, pressed }: { label: strin
       aria-label={label}
       aria-pressed={pressed}
       onClick={onClick}
-      className="relative grid h-11 w-11 place-items-center rounded-2xl text-ink-2 hover:bg-surface-3 focus-visible:outline-2 focus-visible:outline-azure"
+      className={`relative grid h-11 w-11 place-items-center rounded-full border border-hairline bg-surface-2/70 text-ink-2 backdrop-blur transition-transform hover:text-ink active:scale-90 focus-visible:outline-2 focus-visible:outline-azure ${pressed ? 'text-gold-mark' : ''}`}
     >
       {children}
     </button>

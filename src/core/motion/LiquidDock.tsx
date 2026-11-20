@@ -5,9 +5,18 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
 import { haptic, INSTANT, SPRING } from './motion';
+import { GlyphTile } from '../ui/glyphs';
 
 export type QuickAction = 'expense' | 'income' | 'transfer' | 'cheque' | 'invoice' | 'pasteSms';
 const QUICK: QuickAction[] = ['expense', 'income', 'transfer', 'cheque', 'invoice', 'pasteSms'];
+const QUICK_LOOK: Record<QuickAction, [string, string]> = {
+  expense: ['arrowUp', 'var(--arizo-accent-outflow)'],
+  income: ['arrowDown', 'var(--arizo-accent-primary)'],
+  transfer: ['swap', 'var(--arizo-accent-info)'],
+  cheque: ['cheque', 'var(--arizo-accent-luxury)'],
+  invoice: ['invoice', '#B48CFF'],
+  pasteSms: ['message', 'var(--arizo-accent-warning)'],
+};
 
 const icon = {
   home: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
@@ -64,12 +73,27 @@ export function LiquidDock({ onAdd, onQuick }: { onAdd: () => void; onQuick: (a:
         key={tb.key}
         to={tb.to}
         end={tb.end}
+        onClick={() => haptic.tick()}
         className={({ isActive }) =>
-          `flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-semibold transition-colors ${isActive ? 'text-ink' : 'text-ink-2'}`
+          `relative flex min-h-12 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-semibold transition-colors ${isActive ? 'text-ink' : 'text-ink-2'}`
         }
       >
-        <Icon d={icon[tb.key]} />
-        <span>{t(`nav.${tb.key}`)}</span>
+        {({ isActive }) => (
+          <>
+            {isActive && (
+              <motion.span
+                layoutId="dock-active"
+                aria-hidden="true"
+                className="absolute inset-x-1 inset-y-0.5 rounded-2xl bg-[radial-gradient(90%_80%_at_50%_0%,color-mix(in_srgb,var(--arizo-accent-primary)_22%,transparent),transparent)] ring-1 ring-[color-mix(in_srgb,var(--arizo-accent-primary)_28%,transparent)]"
+                transition={reduce ? INSTANT : { type: 'spring', stiffness: 460, damping: 36 }}
+              />
+            )}
+            <motion.span className={`relative ${isActive ? 'text-emerald-text' : ''}`} animate={reduce ? {} : { y: isActive ? -1.5 : 0, scale: isActive ? 1.08 : 1 }} transition={SPRING.press}>
+              <Icon d={icon[tb.key]} />
+            </motion.span>
+            <span className="relative">{t(`nav.${tb.key}`)}</span>
+          </>
+        )}
       </NavLink>
     );
   };
@@ -87,17 +111,18 @@ export function LiquidDock({ onAdd, onQuick }: { onAdd: () => void; onQuick: (a:
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.94 }}
             transition={reduce ? INSTANT : SPRING.sheet}
           >
-            {QUICK.map((a) => (
+            {QUICK.map((a, i) => (
               <button
                 key={a}
                 role="menuitem"
                 type="button"
-                className="min-h-12 rounded-2xl bg-surface-3 px-2 text-[13px] font-semibold text-ink active:scale-95"
+                className="flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-2xl bg-surface-3/70 px-2 py-2 text-[12px] font-semibold text-ink active:scale-95"
                 onClick={() => {
                   setOpen(false);
                   onQuick(a);
                 }}
               >
+                <GlyphTile name={QUICK_LOOK[a][0]} color={QUICK_LOOK[a][1]} size={40} radius={14} pop delay={0.035 * i} />
                 {t(`quick.${a}`)}
               </button>
             ))}
@@ -122,7 +147,8 @@ export function LiquidDock({ onAdd, onQuick }: { onAdd: () => void; onQuick: (a:
           transition={reduce ? INSTANT : SPRING.press}
           className="relative mx-1 grid h-14 w-14 shrink-0 place-items-center rounded-full bg-cta text-on-accent shadow-[0_0_28px_var(--arizo-accent-primary-glow)]"
         >
-          <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+          {!reduce && <span aria-hidden="true" className="arizo-orb-halo absolute inset-0 rounded-full" />}
+          <svg viewBox="0 0 24 24" className="relative h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
           </svg>
         </motion.button>

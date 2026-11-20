@@ -1,36 +1,91 @@
-// Command Center (PROMPT.md §7 #2): header, net worth hero, card stack, 14-day obligations, recent stream.
+// Command Center (PROMPT.md §7 #2): greeting, net worth hero with a 30-day sparkline and this month's
+// in/out, quick actions, card carousel, 14-day obligations, budgets, insights and the recent stream.
+import { motion, useReducedMotion } from 'framer-motion';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
+import { useEntry } from '../../app/stores/entry';
 import { usePrivacy } from '../../app/stores/privacy';
 import { useSettings } from '../../app/stores/settings';
 import { mutate, mutateObligation, useVault } from '../../app/stores/vault';
 import { payInstallment } from '../../core/obligations/loans';
 import { upcomingObligations } from '../../core/obligations/upcoming';
 import { useVaultQuery } from '../../app/useVaultQuery';
-import { monthRange } from '../../core/calendar/calendar';
+import { monthRange, zonedParts } from '../../core/calendar/calendar';
 import { bankByCode } from '../../core/data/banks';
-import { formatDate, formatMoney } from '../../core/i18n/format';
-import { cashflowInBase, computeNetWorth } from '../../core/ledger/networth';
+import { compactMoney, formatDate, formatMoney, localDigits } from '../../core/i18n/format';
+import { balanceEffect } from '../../core/ledger/ledger';
+import { cashflowInBase, computeNetWorth, convertMinor } from '../../core/ledger/networth';
 import { payRecurringNow } from '../../core/ledger/recurring';
 import { OdometerAmount } from '../../core/motion/OdometerAmount';
 import { ParallaxCard } from '../../core/motion/ParallaxCard';
 import { PrivacyBlur } from '../../core/motion/PrivacyBlur';
-import { Card, Icon, IconButton, ICONS, Screen } from '../../core/ui/ui';
+import { haptic } from '../../core/motion/motion';
+import { GlyphTile } from '../../core/ui/glyphs';
+import { Card, Icon, IconButton, ICONS } from '../../core/ui/ui';
+import type { Transaction } from '../../core/storage/schema';
 import { TxRow } from '../transactions/TxRow';
 import { BudgetList, InsightList, useAnalytics, useNames } from '../analytics/Analytics';
 import { periodAt } from '../../core/analytics/periods';
 import { backupDue, backupState } from '../../core/backup/service';
 
+const DAY = 86_400_000;
+
+/** Net worth at the end of each of the last `n` days, walked back from current balances (display only). */
+function sparkSeries(txs: readonly Transaction[], current: bigint, n: number, toBase: (t: Transaction) => bigint | null, now: number): bigint[] {
+  const effects = txs.map((t) => ({ at: t.occurred_at, v: toBase(t) ?? 0n })).sort((a, b) => b.at - a.at);
+  const out: bigint[] = [];
+  let v = current;
+  let i = 0;
+  for (let k = 0; k < n; k++) {
+    const edge = now - k * DAY;
+    for (; i < effects.length && effects[i]!.at >= edge; i++) v -= effects[i]!.v;
+    out.push(v);
+  }
+  return out.reverse();
+}
+
+function Sparkline({ values, rtl }: { values: bigint[]; rtl: boolean }) {
+  const reduce = useReducedMotion();
+  const hidden = usePrivacy((s) => s.hidden);
+  if (values.length < 2) return null;
+  let lo = values[0]!;
+  let hi = values[0]!;
+  for (const v of values) {
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const span = Number(hi - lo) || 1;
+  const W = 300;
+  const H = 64;
+  const pts = values.map((v, k) => [(k / (values.length - 1)) * W, 6 + (H - 12) * (1 - Number(v - lo) / span)] as const);
+  const d = pts.map(([x, y], k) => `${k ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const up = values.at(-1)! >= values[0]!;
+  const tone = up ? 'var(--arizo-accent-primary)' : 'var(--arizo-accent-outflow)';
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true" className={`block h-16 w-full ${rtl ? '-scale-x-100' : ''} ${hidden ? 'blur-[8px]' : ''}`} data-testid="dash-spark">
+      <defs>
+        <linearGradient id="dashSparkFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={tone} stopOpacity="0.32" />
+          <stop offset="100%" stopColor={tone} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${d} L${W},${H} L0,${H} Z`} fill="url(#dashSparkFill)" className={reduce ? '' : 'arizo-fade'} />
+      <path d={d} fill="none" stroke={tone} strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" pathLength={1} className={reduce ? '' : 'arizo-draw'} />
+    </svg>
+  );
+}
 
 export function Dashboard() {
   const { t } = useTranslation();
   const nav = useNavigate();
+  const reduce = useReducedMotion();
   const lang = useSettings((s) => s.lang);
   const cal = useSettings((s) => s.calendar);
   const irrUnit = useSettings((s) => s.irrUnit);
   const setSettings = useSettings((s) => s.set);
   const { hidden, toggle } = usePrivacy();
+  const openEntry = useEntry((s) => s.open);
   const { data } = useVaultQuery(async (db) => {
     const [accounts, txs, rates, cats, rules, cheques, loans, installments, debts, settlements, people] = await Promise.all([
       db.find('accounts'),
@@ -54,9 +109,19 @@ export function Dashboard() {
     const live = data.accounts.filter((a) => a.deleted_at === null && !a.is_archived).sort((a, b) => a.sort_order - b.sort_order);
     const m = monthRange(now, cal);
     const visible = data.txs.filter((x) => x.deleted_at === null && x.status !== 'voided').sort((a, b) => b.occurred_at - a.occurred_at);
+    const nw = computeNetWorth(data.accounts, data.rates, 'IRR', now);
+    const inWorth = new Map(data.accounts.filter((a) => a.deleted_at === null && !a.is_archived && a.is_included_in_net_worth).map((a) => [a.id, a]));
+    const spark = sparkSeries(
+      data.txs.filter((x) => inWorth.has(x.account_id) && balanceEffect(x) !== 0n),
+      nw.totalMinor,
+      30,
+      (x) => convertMinor(balanceEffect(x), inWorth.get(x.account_id)!.currency_code, 'IRR', data.rates, x.occurred_at),
+      now,
+    );
     return {
       live,
-      nw: computeNetWorth(data.accounts, data.rates, 'IRR', now),
+      nw,
+      spark,
       cf: cashflowInBase(data.txs, data.rates, m.start, m.end),
       recent: visible.slice(0, 6),
       pending: visible.filter((x) => x.status === 'pending_review').length,
@@ -73,101 +138,177 @@ export function Dashboard() {
   const names = useNames(data?.cats, data?.accounts);
 
   const ratio = view && view.cf.income > 0n ? Number((view.cf.expense * 100n) / view.cf.income) : null;
+  const hour = zonedParts(Date.now()).hh;
+  const greet = hour < 5 ? t('dash.helloNight') : hour < 12 ? t('dash.helloMorning') : hour < 18 ? t('dash.hello') : hour < 22 ? t('dash.helloEvening') : t('dash.helloNight');
+  const rtl = lang === 'fa';
+  const delta = view && view.spark.length > 1 ? view.spark.at(-1)! - view.spark[0]! : 0n;
+
+  const quick = [
+    { key: 'qExpense', glyph: 'arrowUp', color: 'var(--arizo-accent-outflow)', go: () => openEntry('expense') },
+    { key: 'qIncome', glyph: 'arrowDown', color: 'var(--arizo-accent-primary)', go: () => openEntry('income') },
+    { key: 'qTransfer', glyph: 'swap', color: 'var(--arizo-accent-info)', go: () => openEntry('transfer') },
+    { key: 'qSms', glyph: 'message', color: 'var(--arizo-accent-warning)', go: () => nav('/sms/paste') },
+    { key: 'qInvoice', glyph: 'invoice', color: 'var(--arizo-accent-luxury)', go: () => nav('/invoices/new') },
+    { key: 'qStatement', glyph: 'printer', color: '#B48CFF', go: () => nav('/statements') },
+  ];
+
+  const section = (title: string, more?: { label: string; go: () => void }) => (
+    <div className="flex items-center justify-between">
+      <h2 className="text-[17px] font-bold tracking-tight">{title}</h2>
+      {more && (
+        <button type="button" onClick={more.go} className="min-h-11 rounded-full px-3 text-[13px] font-semibold text-emerald-text transition-colors hover:bg-surface-2">
+          {more.label}
+        </button>
+      )}
+    </div>
+  );
 
   return (
-    <Screen
-      title={t('app.name')}
-      actions={
-        <>
+    <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
+      <header className="flex min-h-12 items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[conic-gradient(from_200deg,var(--arizo-accent-luxury),var(--arizo-accent-primary),var(--arizo-accent-luxury))] p-[2px]" aria-hidden="true">
+            <span className="grid h-full w-full place-items-center rounded-full bg-surface-1 text-[18px] font-extrabold text-gold-text">A</span>
+            <span className="absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full border-2 border-canvas bg-emerald" />
+          </span>
+          <div className="flex min-w-0 flex-col">
+            <span className="text-[12px] text-ink-2">{greet}</span>
+            <h1 className="truncate text-[20px] leading-tight font-extrabold tracking-tight">{t('app.name')}</h1>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <IconButton label={hidden ? t('privacy.show') : t('privacy.hide')} pressed={hidden} onClick={toggle}>
-            <Icon d={hidden ? ICONS.eyeOff : ICONS.eye} />
+            <Icon d={hidden ? ICONS.eyeOff : ICONS.eye} className="h-5 w-5" />
           </IconButton>
           <IconButton label={t('dash.lockNow')} onClick={() => void useVault.getState().lock()}>
-            <Icon d={ICONS.lock} />
+            <Icon d={ICONS.lock} className="h-5 w-5" />
           </IconButton>
           <IconButton label={t('settings.title')} onClick={() => nav('/settings')}>
-            <Icon d={ICONS.settings} />
+            <Icon d={ICONS.settings} className="h-5 w-5" />
           </IconButton>
-        </>
-      }
-    >
-      {view && view.pending > 0 && (
-        <button type="button" onClick={() => nav('/sms')} data-testid="pending-badge" className="min-h-11 self-start rounded-full bg-surface-2 px-4 text-[13px] font-semibold text-amber-text">
-          {t('dash.pendingReview', { n: view.pending })}
-        </button>
+        </div>
+      </header>
+
+      {((view && view.pending > 0) || (due && isMain)) && (
+        <div className="-mt-2 flex flex-wrap gap-2">
+          {view && view.pending > 0 && (
+            <button type="button" onClick={() => nav('/sms')} data-testid="pending-badge" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-amber/30 bg-amber/10 px-4 text-[13px] font-semibold text-amber-text">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-amber" aria-hidden="true" />
+              {t('dash.pendingReview', { n: view.pending })}
+            </button>
+          )}
+          {due && isMain && (
+            <button type="button" onClick={() => nav('/backup')} data-testid="backup-due" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-amber/30 bg-amber/10 px-4 text-[13px] font-semibold text-amber-text">
+              <span className="h-2 w-2 rounded-full bg-amber" aria-hidden="true" />
+              {t('backup.due')}
+            </button>
+          )}
+        </div>
       )}
 
-      {due && isMain && (
-        <button type="button" onClick={() => nav('/backup')} data-testid="backup-due" className="min-h-11 self-start rounded-full bg-surface-2 px-4 text-[13px] font-semibold text-amber-text">
-          {t('backup.due')}
-        </button>
-      )}
-
-      <Card className="relative overflow-hidden p-5">
-        <div aria-hidden="true" className="pointer-events-none absolute -top-16 -end-10 h-48 w-48 rounded-full bg-[radial-gradient(circle,var(--arizo-accent-luxury)_0%,transparent_70%)] opacity-15" />
-        <div className="flex items-center justify-between">
+      {/* Hero: net worth, its 30-day line and this month's in/out. */}
+      <section className="relative overflow-hidden rounded-[30px] border border-specular p-5 shadow-[var(--arizo-shadow)]" style={{ background: 'radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, var(--arizo-accent-primary) 16%, transparent), transparent 55%), radial-gradient(120% 90% at 0% 100%, color-mix(in srgb, var(--arizo-accent-luxury) 14%, transparent), transparent 60%), var(--arizo-card-fill)' }}>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(var(--arizo-text-primary)_1px,transparent_1px)] [background-size:14px_14px]" />
+        <div className="relative flex items-center justify-between gap-2">
           <h2 className="text-[13px] font-semibold text-ink-2">{t('dash.netWorth')}</h2>
           <button
             type="button"
             onClick={() => setSettings({ irrUnit: irrUnit === 'toman' ? 'rial' : 'toman' })}
-            className="min-h-9 rounded-full bg-surface-3 px-3 text-[12px] font-semibold text-ink-2"
+            className="min-h-9 rounded-full border border-hairline bg-surface-2/70 px-3 text-[12px] font-semibold text-ink-2 backdrop-blur"
             data-testid="unit-switch"
           >
             {irrUnit === 'toman' ? `${t('unit.toman')} ⇄ ${t('unit.rial')}` : `${t('unit.rial')} ⇄ ${t('unit.toman')}`}
           </button>
         </div>
-        <div className="mt-2 text-gold-text" data-testid="net-worth">
-          <OdometerAmount minor={view?.nw.totalMinor ?? 0n} currency="IRR" className="text-[clamp(1.9rem,9.5vw,2.9rem)] font-extrabold" />
+        <div className="relative mt-1 text-ink" data-testid="net-worth">
+          <OdometerAmount minor={view?.nw.totalMinor ?? 0n} currency="IRR" className="text-[clamp(2rem,10vw,3rem)] leading-tight font-extrabold tracking-tight" unitClassName="!text-[0.42em] text-ink-2" />
         </div>
-        {view && view.nw.missingRates.length > 0 && <p className="mt-1 text-[12px] text-amber-text">{t('dash.missingRates', { c: view.nw.missingRates.join('، ') })}</p>}
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-surface-2 p-3">
-            <div className="text-[12px] text-ink-2">{t('dash.income')}</div>
-            <PrivacyBlur>
-              <div className="text-[15px] font-bold text-emerald-text tabular" data-testid="month-income">
-                {formatMoney(view?.cf.income ?? 0n, 'IRR', lang, irrUnit)}
+        {view && view.spark.length > 1 && delta !== 0n && (
+          <PrivacyBlur>
+            <span className={`relative mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-bold ${delta > 0n ? 'bg-emerald/15 text-emerald-text' : 'bg-coral/15 text-coral-text'}`} data-testid="dash-delta">
+              {delta > 0n ? '▲' : '▼'} {compactMoney(delta < 0n ? -delta : delta, 'IRR', lang, irrUnit)}
+              <span className="font-semibold opacity-80">· {localDigits(30, lang)} {lang === 'fa' ? 'روز' : 'days'}</span>
+            </span>
+          </PrivacyBlur>
+        )}
+        {view && view.nw.missingRates.length > 0 && <p className="relative mt-1 text-[12px] text-amber-text">{t('dash.missingRates', { c: view.nw.missingRates.join('، ') })}</p>}
+        <div className="relative -mx-1 mt-2">{view && <Sparkline values={view.spark} rtl={rtl} />}</div>
+        <div className="relative mt-3 grid grid-cols-2 gap-3">
+          {(
+            [
+              ['inThisMonth', view?.cf.income ?? 0n, 'month-income', 'arrowDown', 'var(--arizo-accent-primary)', 'text-emerald-text'],
+              ['outThisMonth', view?.cf.expense ?? 0n, 'month-expense', 'arrowUp', 'var(--arizo-accent-outflow)', 'text-coral-text'],
+            ] as const
+          ).map(([k, v, id, g, c, tc]) => (
+            <div key={k} className="flex min-w-0 flex-col gap-2 rounded-2xl border border-hairline bg-surface-2/70 p-3 backdrop-blur">
+              <div className="flex items-center gap-2">
+                <GlyphTile name={g} color={c} size={30} radius={10} glyphClass="h-4 w-4" />
+                <span className="truncate text-[11px] text-ink-2">
+                  {t(`dash.${k}`)} · {t('dash.thisMonth')}
+                </span>
               </div>
-            </PrivacyBlur>
-          </div>
-          <div className="rounded-2xl bg-surface-2 p-3">
-            <div className="text-[12px] text-ink-2">{t('dash.expense')}</div>
-            <PrivacyBlur>
-              <div className="text-[15px] font-bold text-coral-text tabular" data-testid="month-expense">
-                {formatMoney(view?.cf.expense ?? 0n, 'IRR', lang, irrUnit)}
+              <div className="min-w-0">
+                <PrivacyBlur className="max-w-full">
+                  <span className={`block truncate text-[15px] font-bold tabular ${tc}`} data-testid={id}>
+                    {formatMoney(v, 'IRR', lang, irrUnit)}
+                  </span>
+                </PrivacyBlur>
               </div>
-            </PrivacyBlur>
-          </div>
+            </div>
+          ))}
         </div>
         {ratio !== null && (
-          <div className="mt-3" aria-label={`${t('dash.ratio')}: ${ratio}%`}>
-            <div className="h-2 overflow-hidden rounded-full bg-surface-3">
-              <div className={`h-full rounded-full ${ratio > 100 ? 'bg-coral' : 'bg-cta'}`} style={{ width: `${Math.min(100, ratio)}%` }} />
+          <div className="relative mt-3" aria-label={`${t('dash.ratio')}: ${ratio}%`}>
+            <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
+              <motion.div
+                className={`h-full rounded-full ${ratio > 100 ? 'bg-coral' : 'bg-[linear-gradient(90deg,var(--arizo-accent-primary),var(--arizo-accent-luxury))]'}`}
+                initial={reduce ? false : { width: 0 }}
+                animate={{ width: `${Math.min(100, ratio)}%` }}
+                transition={{ duration: 0.9, ease: [0.2, 0.8, 0.2, 1], delay: 0.2 }}
+              />
             </div>
-            <div className="mt-1 text-[11px] text-ink-2">{t('dash.ratio')}</div>
+            <div className="mt-1 flex justify-between text-[11px] text-ink-2">
+              <span>{t('dash.ratio')}</span>
+              <span className="tabular">{localDigits(`${ratio}`, lang)}{lang === 'fa' ? '٪' : '%'}</span>
+            </div>
           </div>
         )}
-      </Card>
+      </section>
+
+      {/* Quick actions */}
+      <section aria-label={t('dash.quick')} className="grid grid-cols-6 gap-1.5" data-testid="dash-quick">
+        {quick.map((q, i) => (
+          <button
+            key={q.key}
+            type="button"
+            onClick={() => {
+              haptic.light();
+              q.go();
+            }}
+            className="group flex min-h-11 flex-col items-center gap-1.5 rounded-2xl py-1 text-[11px] font-semibold text-ink-2 transition-transform active:scale-95"
+          >
+            <GlyphTile name={q.glyph} color={q.color} size={48} radius={18} pop delay={0.05 * i} className="transition-transform group-hover:-translate-y-0.5" />
+            <span className="truncate">{t(`dash.${q.key}`)}</span>
+          </button>
+        ))}
+      </section>
 
       <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[15px] font-bold">{t('dash.accounts')}</h2>
-          <button type="button" onClick={() => nav('/accounts')} className="min-h-11 px-2 text-[13px] font-semibold text-emerald-text">
-            {t('dash.seeAll')}
-          </button>
-        </div>
+        {section(t('dash.cards'), { label: t('dash.seeAll'), go: () => nav('/accounts') })}
         {view && view.live.length === 0 ? (
           <Card className="flex flex-col items-center gap-3 text-center">
+            <GlyphTile name="wallet" color="var(--arizo-accent-luxury)" size={56} radius={20} pop />
             <p className="text-[14px] text-ink-2">{t('dash.noAccounts')}</p>
             <button type="button" onClick={() => nav('/accounts/new')} className="min-h-11 rounded-2xl bg-cta px-4 font-bold text-on-accent">
               {t('dash.addAccount')}
             </button>
           </Card>
         ) : (
-          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none]" data-testid="card-stack">
-            {view?.live.map((a) => {
+          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pt-1 pb-3 [scrollbar-width:none]" data-testid="card-stack">
+            {view?.live.map((a, i) => {
               const bank = bankByCode(a.bank_code);
               return (
-                <div key={a.id} className="w-[82%] shrink-0 snap-center">
+                <div key={a.id} className="arizo-rise w-[84%] shrink-0 snap-center" style={{ ['--i' as string]: i }}>
                   <ParallaxCard
                     finish={a.card_finish}
                     bankName={bank ? (lang === 'fa' ? bank.name_fa : bank.name_en) : t(`accounts.types.${a.type}`)}
@@ -186,12 +327,16 @@ export function Dashboard() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-[15px] font-bold">{t('dash.upcoming')}</h2>
+        {section(t('dash.upcoming'))}
         {view && view.upcoming.length === 0 ? (
-          <p className="text-[13px] text-ink-2">{t('dash.noUpcoming')}</p>
+          <Card className="flex items-center gap-3 p-3">
+            <GlyphTile name="shieldCheck" color="var(--arizo-accent-primary)" size={40} radius={14} />
+            <p className="text-[13px] text-ink-2">{t('dash.noUpcoming')}</p>
+          </Card>
         ) : (
-          view?.upcoming.map((o) => (
-            <Card key={`${o.kind}:${o.id}`} className={`flex items-center gap-3 p-3 ${o.overdue ? 'border-coral/50' : ''}`} data-testid="obligation-row">
+          view?.upcoming.map((o, i) => (
+            <Card key={`${o.kind}:${o.id}`} className={`arizo-rise flex items-center gap-3 p-3 ${o.overdue ? 'border-coral/50' : ''}`} style={{ ['--i' as string]: i }} data-testid="obligation-row">
+              <GlyphTile name={o.kind === 'cheque' ? 'cheque' : o.kind === 'installment' ? 'landmark' : o.kind === 'recurring' ? 'swap' : 'handshake'} color={o.overdue ? 'var(--arizo-accent-outflow)' : 'var(--arizo-accent-info)'} size={40} radius={14} />
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-[15px] font-semibold">{o.title}</span>
                 <span className="text-[12px] text-ink-2">
@@ -218,46 +363,42 @@ export function Dashboard() {
       </section>
 
       <section className="flex flex-col gap-2" data-testid="dash-budgets">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[15px] font-bold">{t('dash.budgets')}</h2>
-          <button type="button" onClick={() => nav('/budgets')} className="min-h-11 px-2 text-[13px] font-semibold text-emerald-text">
-            {report && report.budgets.length ? t('dash.seeAll') : t('dash.addBudget')}
-          </button>
-        </div>
+        {section(t('dash.budgets'), { label: report && report.budgets.length ? t('dash.seeAll') : t('dash.addBudget'), go: () => nav('/budgets') })}
         {report && report.budgets.length > 0 ? (
           <Card className="p-3">
             <BudgetList report={{ ...report, budgets: report.budgets.slice(0, 3) }} names={names} compact />
           </Card>
         ) : (
-          <p className="text-[13px] text-ink-2">{t('dash.noBudgets')}</p>
+          <Card className="flex items-center gap-3 p-3">
+            <GlyphTile name="gauge" color="var(--arizo-accent-warning)" size={40} radius={14} />
+            <p className="text-[13px] text-ink-2">{t('dash.noBudgets')}</p>
+          </Card>
         )}
       </section>
 
       {report && report.insights.length > 0 && (
         <section className="flex flex-col gap-2" data-testid="dash-insights">
-          <h2 className="text-[15px] font-bold">{t('dash.insights')}</h2>
+          {section(t('dash.insights'))}
           <InsightList insights={report.insights.slice(0, 3)} names={names} />
         </section>
       )}
 
-      <section className="flex flex-col gap-1">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[15px] font-bold">{t('dash.recent')}</h2>
-          <button type="button" onClick={() => nav('/ledger')} className="min-h-11 px-2 text-[13px] font-semibold text-emerald-text">
-            {t('dash.seeAll')}
-          </button>
-        </div>
-        {view?.recent.map((x) => (
-          <TxRow
-            key={x.id}
-            tx={x}
-            account={view.byId.get(x.account_id)}
-            counterparty={x.counterparty_account_id ? view.byId.get(x.counterparty_account_id) : undefined}
-            category={x.category_id ? view.catById.get(x.category_id) : undefined}
-            onClick={() => nav('/ledger')}
-          />
-        ))}
+      <section className="flex flex-col gap-2">
+        {section(t('dash.recent'), { label: t('dash.seeAll'), go: () => nav('/ledger') })}
+        <Card className="flex flex-col gap-0.5 p-2">
+          {view?.recent.map((x, i) => (
+            <div key={x.id} className="arizo-rise" style={{ ['--i' as string]: i }}>
+              <TxRow
+                tx={x}
+                account={view.byId.get(x.account_id)}
+                counterparty={x.counterparty_account_id ? view.byId.get(x.counterparty_account_id) : undefined}
+                category={x.category_id ? view.catById.get(x.category_id) : undefined}
+                onClick={() => nav('/ledger')}
+              />
+            </div>
+          ))}
+        </Card>
       </section>
-    </Screen>
+    </main>
   );
 }

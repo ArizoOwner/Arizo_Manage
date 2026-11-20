@@ -19,9 +19,11 @@ export interface PinPadProps {
   /** Slot left of 0 (the biometric button on the lock screen). */
   extra?: ReactNode;
   submitLabel?: string;
+  /** The PIN is being checked (Argon2id): the dots run a gold wave instead of sitting empty. */
+  working?: boolean;
 }
 
-export function PinPad({ onSubmit, error, disabled, extra, submitLabel }: PinPadProps) {
+export function PinPad({ onSubmit, error, disabled, extra, submitLabel, working }: PinPadProps) {
   const { t } = useTranslation();
   const lang = useSettings((s) => s.lang);
   const reduce = useReducedMotion();
@@ -81,9 +83,23 @@ export function PinPad({ onSubmit, error, disabled, extra, submitLabel }: PinPad
         data-testid="pin-dots"
         data-count={pin.length}
       >
-        {Array.from({ length: shown }, (_, i) => (
-          <span key={i} className={`h-3.5 w-3.5 rounded-full border transition-colors ${i < pin.length ? 'border-gold-mark bg-gold-mark' : 'border-specular bg-transparent'}`} />
-        ))}
+        {Array.from({ length: shown }, (_, i) => {
+          const filled = i < pin.length;
+          return (
+            <motion.span
+              key={i}
+              className={`h-3.5 w-3.5 rounded-full border transition-colors duration-200 ${filled || working ? 'border-gold-mark bg-gold-mark shadow-[0_0_14px_var(--arizo-accent-luxury)]' : 'border-specular bg-transparent'}`}
+              initial={false}
+              animate={
+                reduce
+                  ? {}
+                  : working
+                    ? { y: [0, -7, 0], opacity: [0.45, 1, 0.45], transition: { duration: 0.9, repeat: Infinity, delay: i * 0.09, ease: 'easeInOut' } }
+                    : { y: 0, opacity: 1, scale: filled ? [1, 1.45, 1] : 1, transition: { duration: 0.28, ease: [0.2, 0.8, 0.2, 1] } }
+              }
+            />
+          );
+        })}
       </motion.div>
       {error && (
         <p role="alert" className="-mt-2 text-center text-[13px] font-semibold text-coral-text">
@@ -121,15 +137,20 @@ export function PinPad({ onSubmit, error, disabled, extra, submitLabel }: PinPad
 }
 
 function Key({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean | undefined }) {
+  const reduce = useReducedMotion();
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="h-[4.5rem] rounded-full border border-hairline bg-surface-2 text-[26px] font-bold text-ink shadow-[inset_0_1px_0_var(--arizo-border-highlight)] transition-transform active:scale-95 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-azure"
+      whileTap={reduce || disabled ? {} : { scale: 0.88 }}
+      transition={{ type: 'spring', stiffness: 600, damping: 26 }}
+      className="group relative h-[4.5rem] overflow-hidden rounded-full border border-hairline bg-surface-2 text-[26px] font-bold text-ink shadow-[inset_0_1px_0_var(--arizo-border-highlight)] disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-azure"
     >
-      {label}
-    </button>
+      {/* Press glow: a gold bloom from the centre while the key is held. */}
+      <span aria-hidden="true" className="pointer-events-none absolute inset-0 scale-50 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--arizo-accent-luxury)_35%,transparent),transparent_70%)] opacity-0 transition-[opacity,transform] duration-300 group-active:scale-110 group-active:opacity-100 group-active:duration-75" />
+      <span className="relative">{label}</span>
+    </motion.button>
   );
 }
 

@@ -97,10 +97,12 @@ test('lightning entry with keypad, split guard, ledger search, delete + undo, tr
   await page.getByTestId('ledger-search').fill('وجود ندارد');
   await expect(page.getByText('تراکنشی پیدا نشد')).toBeVisible();
   await page.getByTestId('ledger-search').fill('');
+  await page.getByTestId('tx-row').first().click();
   await page.getByRole('button', { name: 'حذف', exact: true }).first().click();
   await expect(page.getByTestId('undo-toast')).toBeVisible();
   await page.getByRole('button', { name: 'برگرداندن' }).click();
   await expect(page.getByTestId('tx-row')).toHaveCount(1);
+  await page.getByTestId('tx-row').first().click();
   await page.getByRole('button', { name: 'حذف', exact: true }).first().click();
   await expect(page.getByText('تراکنشی پیدا نشد')).toBeVisible();
   await page.getByRole('button', { name: 'سطل بازیافت' }).click();

@@ -45,6 +45,7 @@ test('auto-lock from inside every kind of modal leaves no dialog or vault text b
     }],
     ['receipt sheet', async () => {
       await page.evaluate(() => (location.hash = '#/ledger'));
+      await page.getByTestId('tx-row').first().click();
       await page.getByRole('button', { name: 'رسید' }).first().click();
     }],
     ['re-auth sheet', async () => {

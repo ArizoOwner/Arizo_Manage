@@ -1,0 +1,26 @@
+import { expect, test } from '@playwright/test';
+test.skip(!process.env.SHOOT, 'manual');
+test('audit', async ({ page }) => {
+  test.setTimeout(180000);
+  const shot = (n: string) => page.screenshot({ path: `test-results/audit/${n}.png` });
+  await page.goto('/');
+  await shot('0-welcome');
+  await page.getByRole('button', { name: 'شروع' }).click();
+  await page.getByRole('button', { name: 'ادامه' }).click();
+  const pin = async () => { await expect(page.getByTestId('pin-pad').last()).toHaveAttribute('data-busy', 'false', { timeout: 20000 }); for (const d of '482916') await page.keyboard.press(d); };
+  await pin(); await shot('1-pin'); await page.getByTestId('pin-submit').click();
+  await pin(); await page.getByTestId('pin-submit').click();
+  await page.getByRole('button', { name: 'متوجه شدم' }).click({ timeout: 20000 });
+  await page.getByRole('button', { name: 'بعداً' }).click();
+  await page.getByRole('button', { name: 'ادامه' }).click();
+  await page.getByTestId('onboarding-demo').click();
+  await expect(page.getByTestId('card-stack')).toBeVisible({ timeout: 30000 });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: 'test-results/audit/2-home.png', fullPage: true });
+  await page.getByRole('link', { name: 'دفتر' }).click(); await page.waitForTimeout(800); await shot('3-ledger');
+  await page.getByRole('link', { name: 'ابزارها' }).click(); await page.waitForTimeout(800); await page.screenshot({ path: 'test-results/audit/4-tools.png', fullPage: true });
+  await page.getByRole('link', { name: 'تحلیل' }).click(); await page.waitForTimeout(1500); await shot('5-analytics');
+  await page.evaluate(() => { location.hash = '#/accounts'; }); await page.waitForTimeout(800); await page.screenshot({ path: 'test-results/audit/6-accounts.png', fullPage: true });
+  await page.getByRole('link', { name: 'خانه' }).click(); await page.getByRole('button', { name: 'ثبت سریع' }).click(); await page.waitForTimeout(800); await shot('7-entry');
+  await page.keyboard.press('Escape'); await page.getByRole('button', { name: 'قفل', exact: true }).click(); await page.waitForTimeout(600); await shot('8-lock');
+});

@@ -49,6 +49,34 @@ body {
   overscroll-behavior-y: none;
   overflow-x: hidden;
 }
+/* Ambient aurora behind every screen: two light pools fixed to the viewport. Static on purpose: animating it
+   made every backdrop-blur layer above re-blur on each frame (whole-page repaints on low-end GPUs). */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20vmax;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38vmax 30vmax at 82% 6%, var(--arizo-ambient-1), transparent 70%),
+    radial-gradient(34vmax 28vmax at 8% 38%, var(--arizo-ambient-2), transparent 70%);
+}
+/* Elevated surface: soft top light edge over the card fill. */
+.arizo-card {
+  background: var(--arizo-card-fill);
+  box-shadow: inset 0 1px 0 var(--arizo-edge), 0 14px 34px -22px rgba(0, 0, 0, 0.65);
+}
+/* Staggered rise for lists and grids (index via --i); off under reduced motion. */
+.arizo-rise {
+  animation: arizo-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+@keyframes arizo-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+}
 .tabular {
   font-variant-numeric: tabular-nums;
 }
@@ -90,5 +118,28 @@ body {
   }
   50% {
     box-shadow: 0 0 0 7px color-mix(in srgb, var(--arizo-luxury-mark) 0%, transparent);
+  }
+}
+
+/* Dock orb: a slow breathing halo (transform + opacity only, so it never repaints). */
+.arizo-orb-halo {
+  background: var(--arizo-accent-primary-glow);
+  animation: arizo-orb 2.8s ease-out infinite;
+}
+@keyframes arizo-orb {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arizo-orb-halo,
+  .arizo-rise {
+    animation: none;
   }
 }

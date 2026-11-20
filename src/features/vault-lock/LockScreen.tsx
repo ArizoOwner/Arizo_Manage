@@ -1,4 +1,5 @@
 // Obsidian vault gate (PROMPT.md §7 #1): biometric prompt on open, PIN pad, exponential lockout.
+import { motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../app/stores/settings';
@@ -18,6 +19,7 @@ export function LockScreen() {
   const [now, setNow] = useState(() => Date.now());
   const [bio, setBio] = useState(false);
   const remaining = remainingLockMs(lockout, now);
+  const reduce = useReducedMotion();
 
   useEffect(() => {
     if (remaining <= 0) return;
@@ -63,9 +65,23 @@ export function LockScreen() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-8 px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="grid h-16 w-16 place-items-center rounded-3xl border border-specular bg-surface-2 text-gold-mark shadow-[0_0_40px_-10px_var(--arizo-accent-luxury)]">
-          <Icon d={ICONS.lock} className="h-8 w-8" />
-        </div>
+        <motion.div
+          className="relative grid h-20 w-20 place-items-center"
+          initial={reduce ? false : { scale: 0.6, opacity: 0, rotate: -20 }}
+          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+        >
+          {/* A slow orbit around the vault; it spins fast while the PIN is being checked. */}
+          <span
+            aria-hidden="true"
+            className={`absolute inset-0 rounded-[28px] bg-[conic-gradient(from_0deg,transparent_0deg,var(--arizo-accent-luxury)_70deg,transparent_140deg,transparent_360deg)] p-[1.5px] ${reduce ? '' : busy ? 'animate-[spin_0.9s_linear_infinite]' : 'animate-[spin_6s_linear_infinite]'}`}
+          >
+            <span className="block h-full w-full rounded-[27px] bg-canvas" />
+          </span>
+          <span className="relative grid h-[4.6rem] w-[4.6rem] place-items-center rounded-[26px] border border-specular bg-surface-2 text-gold-mark shadow-[0_0_44px_-8px_var(--arizo-accent-luxury)]">
+            <Icon d={ICONS.lock} className="h-9 w-9" />
+          </span>
+        </motion.div>
         <h1 className="text-[22px] font-extrabold">{t('lock.title')}</h1>
         <p className="text-[14px] text-ink-2">{busy ? t('lock.unlocking') : t('lock.enterPin')}</p>
       </div>
@@ -78,6 +94,7 @@ export function LockScreen() {
         onSubmit={submit}
         error={error}
         disabled={busy || remaining > 0}
+        working={busy}
         extra={
           bio ? (
             <button type="button" onClick={() => void tryBiometric()} aria-label={t('lock.biometric')} className="grid h-[4.5rem] w-[4.5rem] place-items-center rounded-full text-emerald-text">

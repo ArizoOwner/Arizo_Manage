@@ -149,6 +149,7 @@ test('invoice studio: profile, invoice, RTL print preview, payment once, receipt
   await expect(page.getByTestId('tx-row')).toContainText('۲۸٬۶۰۰٬۰۰۰ تومان');
 
   // Receipt from that ledger row.
+  await page.getByTestId('tx-row').first().click();
   await page.getByRole('button', { name: 'رسید', exact: true }).first().click();
   const receipt = page.getByTestId('paper-preview').getByTestId('receipt-doc');
   await expect(receipt).toContainText('رسید تراکنش');

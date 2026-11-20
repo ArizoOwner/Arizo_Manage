@@ -11,3 +11,6 @@ playwright-report/
 android/app/release/
 !.env.e2e
 dist-e2e/
+
+# Local-only working folders (signing key backup, Pages build copy, release staging, helper scripts). Never commit.
+_local/

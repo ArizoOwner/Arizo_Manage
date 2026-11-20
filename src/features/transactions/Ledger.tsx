@@ -2,6 +2,7 @@
 // account and type filters, multi-select bulk delete, soft-delete with a 5-second Undo, pending review.
 // @tanstack/react-virtual keeps scrolling smooth with 20,000+ rows: only visible rows are mounted.
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -9,9 +10,11 @@ import { useSettings } from '../../app/stores/settings';
 import { mutate } from '../../app/stores/vault';
 import { useVaultQuery } from '../../app/useVaultQuery';
 import { startOfCalendarDay, toCalendarDate } from '../../core/calendar/calendar';
-import { formatDate, formatMoney } from '../../core/i18n/format';
+import { formatDate, formatMoney, localDigits } from '../../core/i18n/format';
 import { postPendingTransaction, restoreTransaction, softDeleteTransaction } from '../../core/ledger/ledger';
 import { PrivacyBlur } from '../../core/motion/PrivacyBlur';
+import { bankByCode } from '../../core/data/banks';
+import { Glyph } from '../../core/ui/glyphs';
 import type { Transaction } from '../../core/storage/schema';
 import { Button, Icon, IconButton, ICONS, Screen } from '../../core/ui/ui';
 import { SignedMoney, signOf, TxRow } from './TxRow';
@@ -33,12 +36,14 @@ export function Ledger() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [undo, setUndo] = useState<{ ids: string[]; until: number } | null>(null);
   const [receipt, setReceipt] = useState<Transaction | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const reduce = useReducedMotion();
   const { data } = useVaultQuery(async (db) => {
     const [txs, accounts, cats, tags, links] = await Promise.all([db.find('transactions'), db.find('accounts'), db.find('categories'), db.find('tags'), db.find('transaction_tags')]);
     return { txs, accounts, cats, tags, links };
   });
 
-  const { items, byId, catById } = useMemo(() => {
+  const { items, byId, catById, pendingCount, sums } = useMemo(() => {
     const byId = new Map((data?.accounts ?? []).map((a) => [a.id, a]));
     const catById = new Map((data?.cats ?? []).map((c) => [c.id, c]));
     const tagName = new Map((data?.tags ?? []).map((g) => [g.id, g.name]));
@@ -62,6 +67,14 @@ export function Ledger() {
       })
       .sort((a, b) => b.occurred_at - a.occurred_at);
     const items: Item[] = [];
+    const pendingCount = (data?.txs ?? []).filter((x) => x.deleted_at === null && x.status === 'pending_review').length;
+    // Filtered in/out in IRR only (other currencies are not summed: no rate guessing here).
+    const sums = { in: 0n, out: 0n };
+    for (const x of rows) {
+      if (x.currency_code !== 'IRR' || x.status !== 'posted') continue;
+      if (x.type === 'income') sums.in += x.amount_minor;
+      else if (x.type === 'expense') sums.out += x.amount_minor;
+    }
     let curDay = -1;
     let dayItem: Extract<Item, { kind: 'day' }> | null = null;
     for (const x of rows) {
@@ -77,7 +90,7 @@ export function Ledger() {
       }
       items.push({ kind: 'tx', key: x.id, tx: x });
     }
-    return { items, byId, catById };
+    return { items, byId, catById, pendingCount, sums };
   }, [data, q, accountFilter, typeFilter, cal]);
 
   const parentRef = useRef<HTMLDivElement>(null);
@@ -101,18 +114,28 @@ export function Ledger() {
     setUndo({ ids, until: Date.now() + 5_000 });
     setSelected(new Set());
     setSelecting(false);
+    setOpen(null);
   };
 
   const live = data?.accounts.filter((a) => a.deleted_at === null) ?? [];
-  const filterBtn = (f: TypeFilter, label: string) => (
+  const types: { f: TypeFilter; label: string; glyph: string }[] = [
+    { f: 'all', label: t('ledger.all'), glyph: 'chart' },
+    { f: 'expense', label: t('entry.expense'), glyph: 'arrowUp' },
+    { f: 'income', label: t('entry.income'), glyph: 'arrowDown' },
+    { f: 'transfer', label: t('entry.transfer'), glyph: 'swap' },
+    { f: 'pending', label: t('ledger.pendingShort'), glyph: 'bell' },
+  ];
+  const tone: Record<TypeFilter, string> = { all: 'text-gold-text', expense: 'text-coral-text', income: 'text-emerald-text', transfer: 'text-azure-text', pending: 'text-amber-text' };
+  const chip = (id: string, label: string, dot: string | null) => (
     <button
-      key={f}
+      key={id || 'all'}
       type="button"
-      onClick={() => setTypeFilter(f)}
-      aria-pressed={typeFilter === f}
-      className={`min-h-10 shrink-0 rounded-full px-3 text-[13px] font-semibold ${typeFilter === f ? 'bg-surface-1 text-ink shadow-sm' : 'bg-surface-3 text-ink-2'}`}
+      onClick={() => setAccountFilter(id)}
+      aria-pressed={accountFilter === id}
+      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-[13px] font-semibold transition-colors ${accountFilter === id ? 'border-emerald/50 bg-emerald/10 text-ink' : 'border-hairline bg-surface-2/60 text-ink-2'}`}
     >
-      {label}
+      {dot && <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ background: dot }} />}
+      <span className="max-w-[9rem] truncate">{label}</span>
     </button>
   );
 
@@ -145,21 +168,54 @@ export function Ledger() {
           data-testid="ledger-search"
         />
       </label>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
-        {filterBtn('all', t('ledger.all'))}
-        {filterBtn('expense', t('entry.expense'))}
-        {filterBtn('income', t('entry.income'))}
-        {filterBtn('transfer', t('entry.transfer'))}
-        {filterBtn('pending', t('ledger.pending'))}
-        <select value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} className="min-h-10 shrink-0 rounded-full bg-surface-3 px-3 text-[13px] font-semibold text-ink-2" aria-label={t('entry.account')}>
-          <option value="">{t('entry.account')}</option>
-          {live.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
+      {/* Type filter: one segmented control with a sliding thumb, so the choice reads at a glance. */}
+      <div role="group" aria-label={t('ledger.typeFilter')} className="grid grid-cols-5 gap-1 rounded-[20px] border border-hairline bg-surface-2/60 p-1 backdrop-blur" data-testid="ledger-types">
+        {types.map(({ f, label, glyph }) => {
+          const on = typeFilter === f;
+          return (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setTypeFilter(f)}
+              aria-pressed={on}
+              className={`relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 text-[11px] font-semibold transition-colors ${on ? 'text-ink' : 'text-ink-2'}`}
+            >
+              {on && (
+                <motion.span
+                  layoutId="ledger-type-thumb"
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-2xl border border-specular bg-surface-1 shadow-[0_6px_18px_-10px_rgba(0,0,0,0.6)]"
+                  transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
+                />
+              )}
+              <span className="relative">
+                <Glyph name={glyph} className={`h-[18px] w-[18px] ${on ? tone[f] : ''}`} />
+                {f === 'pending' && pendingCount > 0 && (
+                  <span className="absolute -end-2.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-amber px-1 text-[10px] font-bold text-on-accent tabular">{localDigits(pendingCount, lang)}</span>
+                )}
+              </span>
+              <span className="relative max-w-full truncate">{label}</span>
+            </button>
+          );
+        })}
       </div>
+      {live.length > 1 && (
+        <div role="group" aria-label={t('entry.account')} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]" data-testid="ledger-accounts">
+          {chip('', t('ledger.allAccounts'), null)}
+          {live.map((a) => chip(a.id, a.name, bankByCode(a.bank_code)?.color ?? 'var(--arizo-accent-info)'))}
+        </div>
+      )}
+      {items.length > 0 && (
+        <div className="flex items-center justify-between gap-3 px-1 text-[12px] text-ink-2" data-testid="ledger-sums">
+          <span>{t('ledger.shown', { n: localDigits(items.filter((i) => i.kind === 'tx').length, lang) })}</span>
+          <PrivacyBlur>
+            <span className="flex gap-3 font-semibold tabular">
+              {sums.in > 0n && <SignedMoney className="text-emerald-text" sign={1} text={formatMoney(sums.in, 'IRR', lang, irrUnit)} />}
+              {sums.out > 0n && <SignedMoney className="text-coral-text" sign={-1} text={formatMoney(sums.out, 'IRR', lang, irrUnit)} />}
+            </span>
+          </PrivacyBlur>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <p className="py-12 text-center text-[14px] text-ink-2">{t('ledger.empty')}</p>
@@ -182,40 +238,54 @@ export function Ledger() {
                       </PrivacyBlur>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1">
-                      <div className="min-w-0 flex-1">
-                        <TxRow
-                          tx={it.tx}
-                          account={byId.get(it.tx.account_id)}
-                          counterparty={it.tx.counterparty_account_id ? byId.get(it.tx.counterparty_account_id) : undefined}
-                          category={it.tx.category_id ? catById.get(it.tx.category_id) : undefined}
-                          selected={selected.has(it.tx.id)}
-                          onClick={() =>
-                            selecting &&
-                            setSelected((s) => {
-                              const n = new Set(s);
-                              if (n.has(it.tx.id)) n.delete(it.tx.id);
-                              else n.add(it.tx.id);
-                              return n;
-                            })
-                          }
-                        />
-                      </div>
-                      {!selecting && it.tx.status === 'pending_review' && (
-                        <Button variant="ghost" className="!min-h-11 !px-2 text-[12px] text-emerald-text" onClick={() => void mutate((db) => postPendingTransaction(db, it.tx.id))}>
-                          {t('ledger.post')}
-                        </Button>
-                      )}
-                      {!selecting && it.tx.status === 'posted' && (
-                        <IconButton label={t('receipt.open')} onClick={() => setReceipt(it.tx)}>
-                          <Icon d={ICONS.receipt} className="h-5 w-5" />
-                        </IconButton>
-                      )}
-                      {!selecting && (
-                        <IconButton label={t('ledger.delete')} onClick={() => void remove([it.tx.id])}>
-                          <Icon d={ICONS.trash} className="h-5 w-5" />
-                        </IconButton>
-                      )}
+                    <div className={`rounded-2xl transition-colors ${open === it.tx.id ? 'bg-surface-2/70' : ''}`}>
+                      <TxRow
+                        tx={it.tx}
+                        account={byId.get(it.tx.account_id)}
+                        counterparty={it.tx.counterparty_account_id ? byId.get(it.tx.counterparty_account_id) : undefined}
+                        category={it.tx.category_id ? catById.get(it.tx.category_id) : undefined}
+                        {...(selecting ? { selected: selected.has(it.tx.id) } : { expanded: open === it.tx.id })}
+                        onClick={() =>
+                          selecting
+                            ? setSelected((s) => {
+                                const n = new Set(s);
+                                if (n.has(it.tx.id)) n.delete(it.tx.id);
+                                else n.add(it.tx.id);
+                                return n;
+                              })
+                            : setOpen((o) => (o === it.tx.id ? null : it.tx.id))
+                        }
+                      />
+                      <AnimatePresence initial={false}>
+                        {!selecting && open === it.tx.id && (
+                          <motion.div
+                            initial={reduce ? false : { height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                            transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
+                            className="overflow-hidden"
+                          >
+                            <div className="flex flex-wrap gap-2 px-2.5 pt-1 pb-2.5" data-testid="tx-actions">
+                              {it.tx.status === 'pending_review' && (
+                                <button type="button" onClick={() => void mutate((db) => postPendingTransaction(db, it.tx.id))} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cta px-3.5 text-[13px] font-bold text-on-accent">
+                                  <Glyph name="shieldCheck" className="h-4 w-4" />
+                                  {t('ledger.post')}
+                                </button>
+                              )}
+                              {it.tx.status === 'posted' && (
+                                <button type="button" onClick={() => setReceipt(it.tx)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-hairline bg-surface-3 px-3.5 text-[13px] font-semibold text-ink">
+                                  <Glyph name="receipt" className="h-4 w-4" />
+                                  {t('receipt.open')}
+                                </button>
+                              )}
+                              <button type="button" onClick={() => void remove([it.tx.id])} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-coral/30 bg-coral/10 px-3.5 text-[13px] font-semibold text-coral-text">
+                                <Glyph name="trash" className="h-4 w-4" />
+                                {t('ledger.delete')}
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   )}
                 </div>

@@ -55,9 +55,9 @@ for (const lang of ['fa', 'en'] as const) {
     await page.getByRole('link', { name: lang === 'fa' ? 'تحلیل' : 'Analytics' }).click();
     await expect(page.getByTestId('analytics-summary')).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('html')).toHaveAttribute('dir', lang === 'fa' ? 'rtl' : 'ltr');
-    for (const id of ['health', 'networth-chart', 'cashflow-chart', 'donut', 'sankey', 'heatmap', 'subscriptions']) await expect(page.getByTestId(id)).toBeVisible();
+    for (const id of ['health', 'networth-chart', 'cashflow-chart', 'donut', 'heatmap', 'subscriptions']) await expect(page.getByTestId(id)).toBeVisible();
     // Every chart carries a text alternative.
-    for (const id of ['cashflow-chart', 'donut', 'sankey']) expect((await page.getByTestId(id).getAttribute('aria-label'))?.length ?? 0).toBeGreaterThan(10);
+    for (const id of ['cashflow-chart', 'donut']) expect((await page.getByTestId(id).getAttribute('aria-label'))?.length ?? 0).toBeGreaterThan(10);
     await expect(page.getByTestId('networth-chart').locator('svg')).toHaveAttribute('aria-label', /.{10,}/);
     await noOverflow(page);
 

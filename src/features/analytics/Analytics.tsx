@@ -1,5 +1,5 @@
 // Analytics (PROMPT.md §7 #6): Jalali/Gregorian period switcher, health score, cashflow with delta,
-// net worth spline, cashflow bars + savings line, drill-down donut, Sankey, daily heatmap, budgets,
+// net worth spline, cashflow bars + savings line, drill-down donut, daily heatmap, budgets,
 // goals, subscriptions and insights. All aggregation runs in the analytics worker.
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,7 @@ import type { TFunction } from 'i18next';
 import { useNavigate } from 'react-router';
 import { useSettings } from '../../app/stores/settings';
 import { useVault } from '../../app/stores/vault';
-import { leadingBlanks, monthName, WEEKDAYS_EN_MON0, WEEKDAYS_FA_SAT0, type CalendarKind } from '../../core/calendar/calendar';
+import { leadingBlanks, monthName, toCalendarDate, WEEKDAYS_EN_MON0, WEEKDAYS_FA_SAT0, type CalendarKind } from '../../core/calendar/calendar';
 import type { AnalyticsReport, CategoryTotal, Insight } from '../../core/analytics/engine';
 import { UNCATEGORIZED } from '../../core/analytics/engine';
 import { loadAnalyticsInput, runAnalytics } from '../../core/analytics/analyticsClient';
@@ -16,9 +16,9 @@ import { compactMoney, formatDate, formatMoney, localDigits, type IrrUnit, type 
 import { PrivacyBlur } from '../../core/motion/PrivacyBlur';
 import type { Account, Category } from '../../core/storage/schema';
 import { Card, Icon, IconButton, ICONS, Screen, Segmented } from '../../core/ui/ui';
-import { CashflowBars, Donut, Heatmap, Ring, SankeyChart, SplineChart, type HeatCell } from './charts';
+import { CashflowBars, Donut, Heatmap, NetWorthChart, Ring, type HeatCell } from './charts';
 
-// Categorical order for slices and Sankey nodes beyond the category's own colour; text never wears these.
+// Categorical order for slices beyond the category's own colour; text never wears these.
 const OTHER_COLOR = 'var(--arizo-text-muted)';
 
 export interface Names {
@@ -227,20 +227,69 @@ export function AnalyticsScreen() {
             </div>
           </Card>
 
-          {r.netWorth.length > 1 && (
-            <Card className="flex flex-col gap-2">
-              <h2 className="text-[15px] font-bold">{t('analytics.netWorth')}</h2>
-              <PrivacyBlur className="block">
-                <div className="text-[20px] font-extrabold text-gold-text tabular">{money(r.netWorth.at(-1)!.value)}</div>
-              </PrivacyBlur>
-              <SplineChart
-                testId="networth-chart"
-                rtl={rtl}
-                label={t('analytics.netWorthAlt', { from: money(r.netWorth[0]!.value), to: money(r.netWorth.at(-1)!.value) })}
-                points={r.netWorth.map((p) => ({ label: formatDate(p.at, cal, lang), value: p.value, text: money(p.value) }))}
-              />
-            </Card>
-          )}
+          {r.netWorth.length > 1 && (() => {
+            const first = r.netWorth[0]!.value;
+            const last = r.netWorth.at(-1)!.value;
+            const vals = r.netWorth.map((p) => p.value);
+            const hi = vals.reduce((a, b) => (b > a ? b : a));
+            const lo = vals.reduce((a, b) => (b < a ? b : a));
+            const delta = last - first;
+            const pct = first !== 0n ? Number((delta * 10_000n) / (first < 0n ? -first : first)) / 100 : null;
+            const sign = delta > 0n ? '+' : delta < 0n ? '−' : '';
+            const abs = (v: bigint) => (v < 0n ? -v : v);
+            return (
+              <Card className="flex flex-col gap-3" data-testid="networth-card">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-1">
+                    <h2 className="text-[15px] font-bold">{t('analytics.netWorth')}</h2>
+                    <PrivacyBlur className="block">
+                      <div className="text-[24px] leading-tight font-extrabold text-gold-text tabular">{money(last)}</div>
+                    </PrivacyBlur>
+                  </div>
+                  <PrivacyBlur>
+                    <div
+                      className={`flex flex-col items-end gap-0.5 rounded-2xl px-3 py-1.5 text-[12px] font-bold tabular ${delta >= 0n ? 'bg-emerald/15 text-emerald-text' : 'bg-coral/15 text-coral-text'}`}
+                      data-testid="networth-change"
+                    >
+                      {pct !== null && (
+                        <span className="whitespace-nowrap text-[14px]">
+                          {delta >= 0n ? '▲' : '▼'} <bdi dir="ltr">{`${sign}${localDigits(Math.abs(pct).toFixed(1), lang).replace('.', lang === 'fa' ? '٫' : '.')}${lang === 'fa' ? '٪' : '%'}`}</bdi>
+                        </span>
+                      )}
+                      <span className="whitespace-nowrap">{`${sign} ${compactMoney(abs(delta), 'IRR', lang, irrUnit)}`}</span>
+                    </div>
+                  </PrivacyBlur>
+                </div>
+                <NetWorthChart
+                  testId="networth-chart"
+                  rtl={rtl}
+                  label={t('analytics.netWorthAlt', { from: money(first), to: money(last) })}
+                  points={r.netWorth}
+                  fmt={money}
+                  compact={(v) => compactMoney(v, 'IRR', lang, irrUnit)}
+                  dayLabel={(at) => formatDate(at, cal, lang)}
+                  tickLabel={(prev, at) => {
+                    const m = toCalendarDate(at, cal).m;
+                    return prev === null || toCalendarDate(prev, cal).m !== m ? monthName(cal, m, lang) : null;
+                  }}
+                />
+                <PrivacyBlur className="block">
+                  <dl className="grid grid-cols-3 gap-2 text-center text-[12px]" data-testid="networth-stats">
+                    {[
+                      [t('analytics.nwStart'), money(first), 'text-ink'],
+                      [t('analytics.nwHigh'), money(hi), 'text-emerald-text'],
+                      [t('analytics.nwLow'), money(lo), 'text-coral-text'],
+                    ].map(([k, v, c]) => (
+                      <div key={k} className="flex flex-col gap-0.5 rounded-2xl bg-surface-2 px-2 py-2">
+                        <dt className="text-ink-2">{k}</dt>
+                        <dd className={`font-bold tabular ${c}`}>{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </PrivacyBlur>
+              </Card>
+            );
+          })()}
 
           <Card className="flex flex-col gap-2">
             <h2 className="text-[15px] font-bold">{t('analytics.cashflow')}</h2>
@@ -360,20 +409,6 @@ export function AnalyticsScreen() {
             )}
           </Card>
 
-          {r.sankey.links.length > 0 && (
-            <Card className="flex flex-col gap-2">
-              <h2 className="text-[15px] font-bold">{t('analytics.sankey')}</h2>
-              <SankeyChart
-                label={t('analytics.sankeyAlt', { inc: localDigits(r.sankey.income.length, lang), acc: localDigits(r.sankey.accounts.length, lang), exp: localDigits(r.sankey.expense.length, lang) })}
-                columns={[
-                  r.sankey.income.map((n) => ({ key: `income:${n.id}`, label: names.cat(n.id), value: n.value, color: names.color(n.id) })),
-                  r.sankey.accounts.map((n) => ({ key: `account:${n.id}`, label: names.account(n.id), value: n.value, color: 'var(--arizo-accent-info)' })),
-                  r.sankey.expense.map((n) => ({ key: `expense:${n.id}`, label: names.cat(n.id), value: n.value, color: names.color(n.id) })),
-                ]}
-                links={r.sankey.links}
-              />
-            </Card>
-          )}
 
           <Card className="flex flex-col gap-3">
             <h2 className="text-[15px] font-bold">{t('analytics.heatmap')}</h2>

@@ -71,3 +71,24 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+/* Net worth area fades in under the line; the live point breathes. Both off under reduced motion. */
+.arizo-fade {
+  animation: arizo-fade 900ms ease-out both;
+}
+@keyframes arizo-fade {
+  from {
+    opacity: 0;
+  }
+}
+.arizo-pulse {
+  animation: arizo-pulse 2.4s ease-in-out infinite;
+}
+@keyframes arizo-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--arizo-luxury-mark) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--arizo-luxury-mark) 0%, transparent);
+  }
+}

@@ -53,7 +53,7 @@
     <circle class="glow" cx="954" cy="82" r="30" fill="#FF5C7A" fill-opacity=".16" style="animation-delay:1.8s"/>
     <path d="M938 98V84m10 14V70m10 28V78m10 20V74" fill="none" stroke="#FF5C7A" stroke-width="3" stroke-linecap="round"/>
     <text class="t" x="924" y="152">Analytics</text>
-    <text class="s" x="924" y="182">Sankey, heatmap, budgets,</text>
+    <text class="s" x="924" y="182">Net worth, heatmap, budgets,</text>
     <text class="s" x="924" y="204">health score, insights</text>
     <text class="s" x="924" y="226">computed offline</text>
   </g>

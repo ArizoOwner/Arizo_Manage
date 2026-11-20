@@ -79,67 +79,6 @@ function Tooltip({ x, children }: { x: number; children: ReactNode }) {
   );
 }
 
-export interface LinePoint {
-  label: string;
-  value: bigint;
-  text: string;
-}
-
-/** Net worth trajectory: monotone spline with a soft area wash and a scrubbing crosshair. */
-export function SplineChart({ points, label, rtl, testId }: { points: LinePoint[]; label: string; rtl: boolean; testId?: string }) {
-  const H = 150;
-  const gid = useId().replace(/[^a-zA-Z0-9]/g, '');
-  const { i, handlers } = useScrub(points.length, rtl);
-  const reduce = useReducedMotion();
-  const hidden = usePrivacy((s) => s.hidden);
-  if (points.length < 2) return null;
-  // A line needs no zero baseline: scale to the data so the trajectory is readable.
-  const s = scaleY(points.map((p) => p.value), H, 12, false);
-  const xs = points.map((_, k) => (k / (points.length - 1)) * W);
-  const ys = points.map((p) => s.y(p.value));
-  const d = monotonePath(xs, ys);
-  const sel = i === null ? null : { x: xs[i]!, y: ys[i]!, p: points[i]! };
-  const mk = sel ?? { x: xs.at(-1)!, y: ys.at(-1)! };
-  return (
-    <div className="relative pt-14" data-testid={testId}>
-      {sel && (
-        <Tooltip x={rtl ? W - sel.x : sel.x}>
-          <div className="text-ink-2">{sel.p.label}</div>
-          <div className="font-bold text-ink tabular">{sel.p.text}</div>
-        </Tooltip>
-      )}
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        className={`block h-[150px] w-full touch-none outline-none focus-visible:outline-2 focus-visible:outline-azure ${rtl ? '-scale-x-100' : ''} ${hidden ? 'blur-[10px]' : ''}`}
-        role="img"
-        aria-label={label}
-        tabIndex={0}
-        {...handlers}
-      >
-        <defs>
-          <linearGradient id={`g${gid}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--arizo-luxury-mark)" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="var(--arizo-luxury-mark)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[0.25, 0.5, 0.75].map((f) => (
-          <line key={f} x1="0" x2={W} y1={H * f} y2={H * f} stroke="var(--arizo-border-subtle)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-        ))}
-        <path d={`${d} L${W},${H} L0,${H} Z`} fill={`url(#g${gid})`} />
-        <path d={d} fill="none" stroke="var(--arizo-luxury-mark)" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" pathLength={1} className={reduce ? '' : 'arizo-draw'} />
-        {sel && <line x1={sel.x} x2={sel.x} y1="0" y2={H} stroke="var(--arizo-text-secondary)" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
-      </svg>
-      {/* The marker lives outside the stretched SVG so it stays round. */}
-      <span
-        aria-hidden="true"
-        className={`pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface-1 bg-gold-mark ${hidden ? 'blur-[6px]' : ''}`}
-        style={{ left: `${(((rtl ? W - mk.x : mk.x) / W) * 100).toFixed(2)}%`, top: `calc(3.5rem + ${((mk.y / H) * 150).toFixed(1)}px)` }}
-      />
-    </div>
-  );
-}
-
 /** Monotone cubic (Fritsch–Carlson): the spline never invents a dip or peak between points. */
 function monotonePath(xs: number[], ys: number[]): string {
   const n = xs.length;
@@ -309,78 +248,6 @@ export function Donut({ slices, label, center, onSelect, selected }: { slices: D
   );
 }
 
-export interface SankeyNode {
-  key: string;
-  label: string;
-  value: bigint;
-  color: string;
-}
-
-/** Three-column Sankey: income sources → accounts → expense categories. */
-export function SankeyChart({ columns, links, label }: { columns: [SankeyNode[], SankeyNode[], SankeyNode[]]; links: { from: string; to: string; value: bigint }[]; label: string }) {
-  const hidden = usePrivacy((s) => s.hidden);
-  const H = 220;
-  const NW = 10;
-  const GAP = 6;
-  const colX = [0, (W - NW) / 2, W - NW];
-  let maxTotal = 0n;
-  for (const c of columns) {
-    const t = c.reduce((s, n) => s + n.value, 0n);
-    if (t > maxTotal) maxTotal = t;
-  }
-  if (maxTotal <= 0n) return null;
-  const k = (H - GAP * (Math.max(...columns.map((c) => c.length)) - 1)) / Number(maxTotal);
-  const pos = new Map<string, { x: number; y: number; h: number; out: number; in: number }>();
-  columns.forEach((col, ci) => {
-    let y = 0;
-    for (const n of col) {
-      const h = Math.max(2, Number(n.value) * k);
-      pos.set(n.key, { x: colX[ci]!, y, h, out: 0, in: 0 });
-      y += h + GAP;
-    }
-  });
-  const color = new Map(columns.flat().map((n) => [n.key, n.color]));
-  const ribbons = [...links]
-    .sort((a, b) => (a.value === b.value ? 0 : a.value > b.value ? -1 : 1))
-    .map((l, idx) => {
-      const a = pos.get(l.from);
-      const b = pos.get(l.to);
-      if (!a || !b) return null;
-      const w = Math.max(1, Number(l.value) * k);
-      const y0 = a.y + a.out + w / 2;
-      const y1 = b.y + b.in + w / 2;
-      a.out += w;
-      b.in += w;
-      const x0 = a.x + NW;
-      const x1 = b.x;
-      const mx = (x0 + x1) / 2;
-      return <path key={idx} d={`M${x0},${y0.toFixed(1)} C${mx},${y0.toFixed(1)} ${mx},${y1.toFixed(1)} ${x1},${y1.toFixed(1)}`} fill="none" stroke={color.get(l.from.startsWith('income') ? l.from : l.to)} strokeOpacity="0.38" strokeWidth={w.toFixed(1)} />;
-    });
-  return (
-    <div className="flex flex-col gap-3">
-      <svg viewBox={`0 0 ${W} ${H}`} className={`block h-auto w-full ${hidden ? 'blur-[10px]' : ''}`} role="img" aria-label={label} data-testid="sankey">
-        {ribbons}
-        {columns.flat().map((n) => {
-          const p = pos.get(n.key)!;
-          return <rect key={n.key} x={p.x} y={p.y} width={NW} height={p.h} rx="3" fill={n.color} />;
-        })}
-      </svg>
-      <div className="grid grid-cols-3 gap-2 text-[11px] text-ink-2" aria-hidden="true">
-        {columns.map((col, ci) => (
-          <ul key={ci} className={`flex min-w-0 flex-col gap-1 ${ci === 1 ? 'text-center' : ci === 2 ? 'text-end' : ''}`}>
-            {col.map((n) => (
-              <li key={n.key} className="truncate">
-                <span className="me-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: n.color }} />
-                {n.label}
-              </li>
-            ))}
-          </ul>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export interface HeatCell {
   day: number | null;
   value: bigint;
@@ -456,5 +323,138 @@ export function Ring({ pct, thresholds, size = 64, label, higherIsBetter }: { pc
           return <line key={t} x1={size / 2 + (r - 4) * Math.cos(a)} y1={size / 2 + (r - 4) * Math.sin(a)} x2={size / 2 + (r + 4) * Math.cos(a)} y2={size / 2 + (r + 4) * Math.sin(a)} stroke="var(--arizo-surface-1)" strokeWidth="2" />;
         })}
     </svg>
+  );
+}
+
+export interface WorthPoint {
+  at: number;
+  value: bigint;
+}
+
+/**
+ * Net worth trajectory (rebuilt): y-axis labels, month ticks, the start level as a dashed baseline,
+ * high and low markers, gain/loss tint, and a tooltip with that day's value and change vs the day before.
+ * Display geometry is float; every number shown is formatted from the bigint by the caller.
+ */
+export function NetWorthChart({
+  points,
+  label,
+  rtl,
+  fmt,
+  compact,
+  dayLabel,
+  tickLabel,
+  testId,
+}: {
+  points: WorthPoint[];
+  label: string;
+  rtl: boolean;
+  fmt: (v: bigint) => string;
+  compact: (v: bigint) => string;
+  dayLabel: (at: number) => string;
+  /** Month name for an x tick, or null when `at` does not start a new month. */
+  tickLabel: (prevAt: number | null, at: number) => string | null;
+  testId?: string;
+}) {
+  const H = 190;
+  const PAD = 14;
+  const gid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const { i, handlers } = useScrub(points.length, rtl);
+  const reduce = useReducedMotion();
+  const hidden = usePrivacy((s) => s.hidden);
+  if (points.length < 2) return null;
+  const vals = points.map((p) => p.value);
+  const s = scaleY(vals, H, PAD, false);
+  const xs = points.map((_, k) => (k / (points.length - 1)) * W);
+  const ys = points.map((p) => s.y(p.value));
+  const d = monotonePath(xs, ys);
+  let hiK = 0;
+  let loK = 0;
+  vals.forEach((v, k) => {
+    if (v > vals[hiK]!) hiK = k;
+    if (v < vals[loK]!) loK = k;
+  });
+  const up = vals.at(-1)! >= vals[0]!;
+  const tone = up ? 'var(--arizo-accent-primary)' : 'var(--arizo-accent-outflow)';
+  const baseY = ys[0]!;
+  // Only real month boundaries, and none crowded against an edge (the labels would overlap).
+  const ticks = points.map((p, k) => ({ k, t: k ? tickLabel(points[k - 1]!.at, p.at) : null })).filter((x) => x.t && xs[x.k]! > W * 0.08 && xs[x.k]! < W * 0.92);
+  const gridVals = [0, 0.5, 1].map((f) => {
+    const v = vals[loK]! + BigInt(Math.round(Number(vals[hiK]! - vals[loK]!) * f));
+    return { v, y: s.y(v) };
+  });
+  const sel = i === null ? null : { x: xs[i]!, y: ys[i]!, p: points[i]!, prev: i > 0 ? points[i - 1]! : null };
+  const vx = (x: number) => `${(((rtl ? W - x : x) / W) * 100).toFixed(2)}%`;
+  const vy = (y: number) => `${y.toFixed(1)}px`;
+  const dot = (x: number, y: number, cls: string, key: string) => (
+    <span key={key} aria-hidden="true" className={`pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface-1 ${cls} ${hidden ? 'blur-[6px]' : ''}`} style={{ left: vx(x), top: vy(y) }} />
+  );
+  return (
+    <div className="flex flex-col gap-1" data-testid={testId}>
+      <div className="relative pt-16">
+        {sel && (
+          <Tooltip x={rtl ? W - sel.x : sel.x}>
+            <div className="text-ink-2">{dayLabel(sel.p.at)}</div>
+            <div className="text-[14px] font-bold text-ink tabular">{fmt(sel.p.value)}</div>
+            {sel.prev && sel.p.value !== sel.prev.value && (
+              <div className={`tabular ${sel.p.value > sel.prev.value ? 'text-emerald-text' : 'text-coral-text'}`} data-testid="networth-daydelta">
+                {sel.p.value > sel.prev.value ? '▲ ' : '▼ '}
+                {fmt(sel.p.value > sel.prev.value ? sel.p.value - sel.prev.value : sel.prev.value - sel.p.value)}
+              </div>
+            )}
+          </Tooltip>
+        )}
+        <div className="relative" style={{ height: H }}>
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            preserveAspectRatio="none"
+            className={`absolute inset-0 block h-full w-full touch-none outline-none focus-visible:outline-2 focus-visible:outline-azure ${rtl ? '-scale-x-100' : ''} ${hidden ? 'blur-[10px]' : ''}`}
+            role="img"
+            aria-label={label}
+            tabIndex={0}
+            {...handlers}
+          >
+            <defs>
+              <linearGradient id={`a${gid}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={tone} stopOpacity="0.28" />
+                <stop offset="100%" stopColor={tone} stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id={`l${gid}`} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="var(--arizo-luxury-mark)" />
+                <stop offset="100%" stopColor={tone} />
+              </linearGradient>
+            </defs>
+            {gridVals.map((g) => (
+              <line key={g.y} x1="0" x2={W} y1={g.y} y2={g.y} stroke="var(--arizo-border-subtle)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            ))}
+            {ticks.map(({ k }) => (
+              <line key={k} x1={xs[k]} x2={xs[k]} y1={PAD} y2={H} stroke="var(--arizo-border-subtle)" strokeWidth="1" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
+            ))}
+            <line x1="0" x2={W} y1={baseY} y2={baseY} stroke="var(--arizo-text-secondary)" strokeOpacity="0.5" strokeWidth="1" strokeDasharray="5 5" vectorEffect="non-scaling-stroke" data-testid="networth-baseline" />
+            <path d={`${d} L${W},${H} L0,${H} Z`} fill={`url(#a${gid})`} className={reduce ? '' : 'arizo-fade'} />
+            <path d={d} fill="none" stroke={`url(#l${gid})`} strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" pathLength={1} className={reduce ? '' : 'arizo-draw'} />
+            {sel && <line x1={sel.x} x2={sel.x} y1="0" y2={H} stroke="var(--arizo-text-secondary)" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
+          </svg>
+          {/* Markers and axis text live outside the stretched SVG so they stay round and readable. */}
+          {hiK !== loK && dot(xs[hiK]!, ys[hiK]!, 'bg-emerald', 'hi')}
+          {hiK !== loK && dot(xs[loK]!, ys[loK]!, 'bg-coral', 'lo')}
+          {dot(sel ? sel.x : xs.at(-1)!, sel ? sel.y : ys.at(-1)!, `bg-gold-mark ${sel || reduce ? '' : 'arizo-pulse'}`, 'cur')}
+          <div aria-hidden="true" className={`pointer-events-none absolute inset-y-0 start-0 flex flex-col text-[10px] text-ink-2 tabular ${hidden ? 'blur-[6px]' : ''}`}>
+            {gridVals.map((g) => (
+              <span key={g.y} className="absolute start-1 -translate-y-full whitespace-nowrap rounded bg-surface-1/70 px-1" style={{ top: vy(g.y) }}>
+                {compact(g.v)}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div aria-hidden="true" className="relative h-4 text-[10px] text-ink-2">
+          {ticks.map(({ k, t }) => (
+            <span key={k} className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: vx(xs[k]!) }}>
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

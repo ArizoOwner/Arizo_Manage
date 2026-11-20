@@ -59,18 +59,6 @@ export interface CategoryTotal {
   /** Direct children with their own totals (the parent's own transactions appear as a child with the parent's id). */
   children: { id: string; total: bigint; txs: TxRef[] }[];
 }
-export interface SankeyLink {
-  from: string;
-  to: string;
-  value: bigint;
-}
-export interface Sankey {
-  income: { id: string; value: bigint }[];
-  accounts: { id: string; value: bigint }[];
-  expense: { id: string; value: bigint }[];
-  /** income:<cat> → account:<id> and account:<id> → expense:<cat>. "other" groups the tail. */
-  links: SankeyLink[];
-}
 export interface BudgetStatus {
   id: string;
   category_id: string | null;
@@ -145,7 +133,6 @@ export interface AnalyticsReport {
   netWorth: { at: number; value: bigint }[];
   categories: CategoryTotal[];
   incomeCategories: CategoryTotal[];
-  sankey: Sankey;
   heatmap: { start: number; expense: bigint }[];
   budgets: BudgetStatus[];
   goals: GoalStatus[];
@@ -237,7 +224,6 @@ export function computeAnalytics(input: AnalyticsInput, o: AnalyticsOptions): An
 
   const categories = categoryTree(inRange(period), 'expense', topOf);
   const incomeCategories = categoryTree(inRange(period), 'income', topOf);
-  const sankey = buildSankey(inRange(period), topOf);
 
   const days = dayStarts(period.start, period.end, tz);
   const heatmap = days.slice(0, -1).map((start, i) => {
@@ -275,7 +261,6 @@ export function computeAnalytics(input: AnalyticsInput, o: AnalyticsOptions): An
     netWorth,
     categories,
     incomeCategories,
-    sankey,
     heatmap,
     budgets,
     goals,
@@ -315,62 +300,6 @@ const covers = (firstAt: number | undefined, start: number) => firstAt !== undef
 
 const cmpDesc = (a: bigint, b: bigint) => (a === b ? 0 : a > b ? -1 : 1);
 
-/** Keep the largest `n` keys of a sum map; everything else becomes "other". */
-function topKeys(m: Map<string, bigint>, n: number): Set<string> {
-  return new Set([...m].sort((a, b) => cmpDesc(a[1], b[1])).slice(0, n).map(([k]) => k));
-}
-
-function buildSankey(list: Piece[], topOf: (id: string) => string): Sankey {
-  const inc = new Map<string, bigint>();
-  const exp = new Map<string, bigint>();
-  const acc = new Map<string, bigint>();
-  const add = (m: Map<string, bigint>, k: string, v: bigint) => m.set(k, (m.get(k) ?? 0n) + v);
-  const cat = (p: Piece) => (p.category === UNCATEGORIZED ? UNCATEGORIZED : topOf(p.category));
-  for (const p of list) {
-    add(p.tx.type === 'income' ? inc : exp, cat(p), p.value);
-    add(acc, p.tx.account_id, p.value);
-  }
-  const keepI = topKeys(inc, 5);
-  const keepE = topKeys(exp, 6);
-  const keepA = topKeys(acc, 5);
-  const ik = (c: string) => (keepI.has(c) ? c : 'other');
-  const ek = (c: string) => (keepE.has(c) ? c : 'other');
-  const ak = (a: string) => (keepA.has(a) ? a : 'other');
-  const links = new Map<string, bigint>();
-  const incomeN = new Map<string, bigint>();
-  const expenseN = new Map<string, bigint>();
-  const accIn = new Map<string, bigint>();
-  const accOut = new Map<string, bigint>();
-  for (const p of list) {
-    const a = ak(p.tx.account_id);
-    if (p.tx.type === 'income') {
-      const c = ik(cat(p));
-      add(links, `income:${c}|account:${a}`, p.value);
-      add(incomeN, c, p.value);
-      add(accIn, a, p.value);
-    } else {
-      const c = ek(cat(p));
-      add(links, `account:${a}|expense:${c}`, p.value);
-      add(expenseN, c, p.value);
-      add(accOut, a, p.value);
-    }
-  }
-  const accounts = [...new Set([...accIn.keys(), ...accOut.keys()])].map((id) => {
-    const i = accIn.get(id) ?? 0n;
-    const out = accOut.get(id) ?? 0n;
-    return { id, value: i > out ? i : out };
-  });
-  const sorted = (m: Map<string, bigint>) => [...m].map(([id, value]) => ({ id, value })).sort((a, b) => (a.id === 'other' ? 1 : b.id === 'other' ? -1 : cmpDesc(a.value, b.value)));
-  return {
-    income: sorted(incomeN),
-    accounts: accounts.sort((a, b) => (a.id === 'other' ? 1 : b.id === 'other' ? -1 : cmpDesc(a.value, b.value))),
-    expense: sorted(expenseN),
-    links: [...links].map(([k, value]) => {
-      const [from, to] = k.split('|') as [string, string];
-      return { from, to, value };
-    }),
-  };
-}
 
 /**
  * Net worth at the end of each day in [from, to). An account's balance at time T is its current

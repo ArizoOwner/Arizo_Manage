@@ -162,7 +162,6 @@ describe('cashflow and categories', () => {
     );
     expect(r.cashflow).toMatchObject({ income: 10_000_000n, expense: 2_000_000n, net: 8_000_000n, savingsBps: 8000 });
     expect(r.categories.map((c) => [c.id, c.total])).toEqual([['cat_food', 2_000_000n]]);
-    expect(r.sankey.links.reduce((s, l) => s + l.value, 0n)).toBe(12_000_000n);
   });
 
   it('a split transaction counts once per split category; sub-categories roll up with drill-down', () => {

@@ -345,6 +345,7 @@ class ArizoSecurityPlugin : Plugin() {
         dropBioSlot()
         runCatching { keyStore().deleteEntry(QUEUE_ALIAS) }
         metaDir().listFiles()?.forEach { it.delete() }
+        SmsQueue.clear(context)
         call.resolve()
     }
 

@@ -9,8 +9,10 @@ import { AnalyticsPlaceholder, MoreScreen } from '../features/settings/MoreScree
 import { ChequesScreen } from '../features/obligations/Cheques';
 import { LoansScreen } from '../features/obligations/Loans';
 import { DebtsScreen } from '../features/obligations/Debts';
+import { SmsCenter } from '../features/sms-intelligence/SmsCenter';
 
-// Hash routing: required for static zero-server hosting and #/sms-ingest fragment ingestion (Phase 5).
+// Hash routing: required for static zero-server hosting. `#/sms-ingest?d=` is consumed and wiped in
+// main.tsx (captureIngestFragment) before the router ever sees it.
 // The Design Gallery exists in dev and E2E builds only (VITE_E2E is set by the Playwright web server).
 const devRoutes: RouteObject[] = import.meta.env.DEV || import.meta.env.VITE_E2E === '1' ? [{ path: '/gallery', element: <DesignGallery /> }] : [];
 
@@ -33,6 +35,8 @@ export const router = createHashRouter([
       { path: 'cheques', element: <ChequesScreen /> },
       { path: 'loans', element: <LoansScreen /> },
       { path: 'debts', element: <DebtsScreen /> },
+      { path: 'sms', element: <SmsCenter /> },
+      { path: 'sms/paste', element: <SmsCenter initialTab="paste" /> },
       { path: '*', element: <Dashboard /> },
     ],
   },

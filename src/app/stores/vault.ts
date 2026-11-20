@@ -101,6 +101,11 @@ export const useVault = create<VaultState>((set, get) => ({
     // Decoy sessions never touch the OS notification schedule (it belongs to the real vault).
     if (open.kind === 'main') await import('../../core/obligations/sync').then((m) => m.syncObligations(open.db)).catch(() => {});
     set({ open, lockout: s, initialized: true, reauthUntil: Date.now() + 60_000, rev: get().rev + 1 });
+    // Captured SMS (Android sealed queue, iOS Shortcuts hand-off) are processed only once unlocked.
+    void import('../../features/sms-intelligence/intake').then(async (m) => {
+      await m.flushHeldFragment();
+      await m.drainNativeQueue();
+    }).catch(() => {});
   },
 
   async lock() {

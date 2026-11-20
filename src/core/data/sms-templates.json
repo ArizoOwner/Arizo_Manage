@@ -1,0 +1,630 @@
+{
+  "_note": "Data-driven SMS templates (PROMPT.md 1.4, 6.2). Each bank is identified by name keywords that appear in its messages (never by guessed sender numbers: senders are confirmed by the user when a message arrives). Field extraction is label-driven, so a template only adds labels or defaults where a bank differs. Keywords and labels are written in normalized form (ASCII digits, Persian ی/ک, no ZWNJ); spaces inside a keyword are optional when matching. Users add exact formats through Teach the Parser and the Custom Regex Studio (sms_parser_rules).",
+  "version": 1,
+  "labels": {
+    "amount": [
+      "مبلغ تراکنش",
+      "مبلغ",
+      "برداشت",
+      "واریز",
+      "خرید",
+      "انتقال",
+      "پرداخت",
+      "کسر",
+      "amount",
+      "amt",
+      "debited",
+      "credited",
+      "spent",
+      "purchase",
+      "withdrawal",
+      "deposit",
+      "payment",
+      "paid",
+      "sent",
+      "received",
+      "charged",
+      "refund"
+    ],
+    "balance": [
+      "موجودی قابل برداشت",
+      "قابل برداشت",
+      "موجودی حساب",
+      "مانده حساب",
+      "مانده",
+      "موجودی",
+      "باقیمانده",
+      "avl bal",
+      "avail bal",
+      "balance",
+      "bal",
+      "available",
+      "avail"
+    ],
+    "ref": [
+      "شماره پیگیری",
+      "پیگیری",
+      "مرجع",
+      "ارجاع",
+      "شماره سند",
+      "سند",
+      "کد رهگیری",
+      "رهگیری",
+      "ref",
+      "reference",
+      "trace",
+      "txn id",
+      "transaction id",
+      "auth"
+    ],
+    "card": [
+      "کارت",
+      "حساب",
+      "سپرده",
+      "card",
+      "acct",
+      "account",
+      "a/c",
+      "ending in",
+      "ending"
+    ],
+    "merchant": [
+      "خرید از",
+      "پرداخت به",
+      "انتقال به",
+      "فروشگاه",
+      "پذیرنده",
+      "نزد",
+      "بابت",
+      "شرح",
+      "merchant",
+      "at",
+      "to",
+      "from",
+      "with"
+    ]
+  },
+  "direction": {
+    "debit": [
+      "برداشت",
+      "خرید",
+      "پرداخت",
+      "کسر",
+      "انتقال",
+      "حواله",
+      "کارمزد",
+      "debited",
+      "debit of",
+      "withdrawal",
+      "withdrawn",
+      "purchase",
+      "spent",
+      "paid",
+      "sent",
+      "charged",
+      "payment",
+      "you made a"
+    ],
+    "credit": [
+      "واریز",
+      "افزایش",
+      "دریافت",
+      "سود",
+      "credited",
+      "credit of",
+      "deposit",
+      "deposited",
+      "received",
+      "refund"
+    ]
+  },
+  "channels": {
+    "pos": [
+      "کارتخوان",
+      "پوز",
+      "pos"
+    ],
+    "online": [
+      "اینترنتی",
+      "درگاه",
+      "online",
+      "web"
+    ],
+    "atm": [
+      "خودپرداز",
+      "atm"
+    ],
+    "transfer": [
+      "پایا",
+      "ساتنا",
+      "شبا",
+      "پل",
+      "انتقال",
+      "transfer"
+    ],
+    "mobile": [
+      "همراه بانک",
+      "موبایل بانک",
+      "اپلیکیشن",
+      "mobile",
+      "app"
+    ]
+  },
+  "templates": [
+    {
+      "bank_code": "melli",
+      "keywords": [
+        "بانک ملی",
+        "Bank Melli",
+        "BMI"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "mellat",
+      "keywords": [
+        "بانک ملت",
+        "Mellat"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "saderat",
+      "keywords": [
+        "بانک صادرات",
+        "صادرات ایران",
+        "Saderat"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "tejarat",
+      "keywords": [
+        "بانک تجارت",
+        "Tejarat"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "sepah",
+      "keywords": [
+        "بانک سپه",
+        "Sepah"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "pasargad",
+      "keywords": [
+        "پاسارگاد",
+        "Pasargad"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "saman",
+      "keywords": [
+        "بانک سامان",
+        "Saman Bank"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "parsian",
+      "keywords": [
+        "پارسیان",
+        "Parsian"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "keshavarzi",
+      "keywords": [
+        "بانک کشاورزی",
+        "Keshavarzi"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "maskan",
+      "keywords": [
+        "بانک مسکن",
+        "Maskan"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "refah",
+      "keywords": [
+        "بانک رفاه",
+        "رفاه کارگران",
+        "Refah"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "ayandeh",
+      "keywords": [
+        "بانک آینده",
+        "Ayandeh"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "eghtesad_novin",
+      "keywords": [
+        "اقتصاد نوین",
+        "Eghtesad Novin"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "shahr",
+      "keywords": [
+        "بانک شهر",
+        "Shahr Bank"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "resalat",
+      "keywords": [
+        "بانک رسالت",
+        "قرض الحسنه رسالت",
+        "Resalat"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "post_bank",
+      "keywords": [
+        "پست بانک",
+        "Post Bank"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "sina",
+      "keywords": [
+        "بانک سینا",
+        "Sina Bank"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "karafarin",
+      "keywords": [
+        "کارآفرین",
+        "Karafarin"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "dey",
+      "keywords": [
+        "بانک دی",
+        "Dey Bank"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "khavarmianeh",
+      "keywords": [
+        "خاورمیانه",
+        "Middle East Bank"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "sarmayeh",
+      "keywords": [
+        "بانک سرمایه",
+        "Sarmayeh"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "gardeshgari",
+      "keywords": [
+        "بانک گردشگری",
+        "Gardeshgari",
+        "Tourism Bank"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "tosee_taavon",
+      "keywords": [
+        "توسعه تعاون",
+        "Tosee Taavon"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "iran_zamin",
+      "keywords": [
+        "ایران زمین",
+        "Iran Zamin"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "mehr_iran",
+      "keywords": [
+        "مهر ایران",
+        "Mehr Iran"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "melal",
+      "keywords": [
+        "اعتباری ملل",
+        "موسسه ملل",
+        "Melal"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "tosee_saderat",
+      "keywords": [
+        "توسعه صادرات",
+        "EDBI"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "sanat_madan",
+      "keywords": [
+        "صنعت و معدن",
+        "Sanat va Madan"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "noor",
+      "keywords": [
+        "اعتباری نور",
+        "موسسه نور",
+        "Noor Credit"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "blu",
+      "keywords": [
+        "بلو بانک",
+        "بلوبانک",
+        "بلو",
+        "Blu Bank",
+        "Blubank"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "wepod",
+      "keywords": [
+        "ویپاد",
+        "Wepod"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "bankino",
+      "keywords": [
+        "بانکینو",
+        "Bankino"
+      ],
+      "unit": "irr"
+    },
+    {
+      "bank_code": "chase",
+      "keywords": [
+        "Chase"
+      ],
+      "currency": "USD",
+      "date_order": "mdy"
+    },
+    {
+      "bank_code": "bofa",
+      "keywords": [
+        "Bank of America",
+        "BofA"
+      ],
+      "currency": "USD",
+      "date_order": "mdy"
+    },
+    {
+      "bank_code": "citi",
+      "keywords": [
+        "Citibank",
+        "Citi"
+      ],
+      "currency": "USD",
+      "date_order": "mdy"
+    },
+    {
+      "bank_code": "hsbc",
+      "keywords": [
+        "HSBC"
+      ],
+      "currency": "GBP",
+      "date_order": "dmy"
+    },
+    {
+      "bank_code": "revolut",
+      "keywords": [
+        "Revolut"
+      ],
+      "currency": "EUR",
+      "date_order": "dmy"
+    },
+    {
+      "bank_code": "wise",
+      "keywords": [
+        "Wise"
+      ],
+      "currency": "EUR",
+      "date_order": "dmy"
+    },
+    {
+      "bank_code": "emirates_nbd",
+      "keywords": [
+        "Emirates NBD",
+        "ENBD"
+      ],
+      "currency": "AED",
+      "date_order": "dmy"
+    }
+  ],
+  "merchants": [
+    {
+      "match": [
+        "اسنپ فود",
+        "snappfood",
+        "snapp food"
+      ],
+      "category": "cat_food"
+    },
+    {
+      "match": [
+        "اسنپ مارکت",
+        "snapp market"
+      ],
+      "category": "cat_grocery"
+    },
+    {
+      "match": [
+        "اسنپ",
+        "snapp",
+        "تپسی",
+        "tapsi",
+        "uber",
+        "lyft",
+        "مترو",
+        "metro"
+      ],
+      "category": "cat_transport"
+    },
+    {
+      "match": [
+        "دیجی کالا",
+        "دیجیکالا",
+        "digikala",
+        "amazon",
+        "ebay"
+      ],
+      "category": "cat_other_expense"
+    },
+    {
+      "match": [
+        "همراه اول",
+        "ایرانسل",
+        "رایتل",
+        "mci",
+        "irancell",
+        "شاتل",
+        "مبین نت",
+        "vodafone",
+        "etisalat"
+      ],
+      "category": "cat_telecom"
+    },
+    {
+      "match": [
+        "قبض",
+        "آب و فاضلاب",
+        "برق",
+        "گاز",
+        "bill",
+        "utility",
+        "dewa"
+      ],
+      "category": "cat_bills"
+    },
+    {
+      "match": [
+        "پمپ بنزین",
+        "جایگاه سوخت",
+        "بنزین",
+        "shell",
+        "chevron",
+        "adnoc",
+        "enoc"
+      ],
+      "category": "cat_fuel"
+    },
+    {
+      "match": [
+        "رستوران",
+        "کافه",
+        "فست فود",
+        "restaurant",
+        "cafe",
+        "starbucks",
+        "mcdonald",
+        "kfc"
+      ],
+      "category": "cat_food"
+    },
+    {
+      "match": [
+        "هایپر",
+        "فروشگاه رفاه",
+        "افق کوروش",
+        "شهروند",
+        "سوپرمارکت",
+        "carrefour",
+        "walmart",
+        "tesco",
+        "lidl",
+        "aldi"
+      ],
+      "category": "cat_grocery"
+    },
+    {
+      "match": [
+        "داروخانه",
+        "بیمارستان",
+        "کلینیک",
+        "pharmacy",
+        "hospital",
+        "clinic"
+      ],
+      "category": "cat_health"
+    },
+    {
+      "match": [
+        "فیلیمو",
+        "نماوا",
+        "netflix",
+        "spotify",
+        "cinema",
+        "سینما"
+      ],
+      "category": "cat_fun"
+    },
+    {
+      "match": [
+        "کارمزد",
+        "fee"
+      ],
+      "category": "cat_bank_fee"
+    },
+    {
+      "match": [
+        "حقوق",
+        "salary",
+        "payroll"
+      ],
+      "category": "cat_salary"
+    },
+    {
+      "match": [
+        "سود سپرده",
+        "interest"
+      ],
+      "category": "cat_interest"
+    }
+  ]
+}

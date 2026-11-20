@@ -1,3 +1,5 @@
+// Must stay the first import: the iOS Shortcuts fragment is wiped before the router is created.
+import './app/bootFragment';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';

@@ -14,8 +14,9 @@ The spec is `PROMPT.md`. It is the source of truth; this file records what is **
 | 2 | Design system, i18n, dual calendar, motion primitives | ✅ done, gate green (199 unit + 10 E2E) |
 | 3 | Vault lock, onboarding, dashboard, accounts, ledger | ✅ done, gate green (232 unit + 16 E2E, R8 release APK) |
 | 4 | Cheques, loans & installments, debts, local reminders | ✅ done, gate green (261 unit + 19 E2E, R8 release APK) |
-| 5 | Bank SMS & notification intelligence engine | ⏳ next |
-| 6–9 | See PROMPT.md §8 | pending |
+| 5 | Bank SMS & notification intelligence engine | ✅ done, gate green (371 unit incl. 89 SMS vectors + 22 E2E, R8 release APK) |
+| 6 | Analytics, budgets, goals, insights | ⏳ next |
+| 7–9 | See PROMPT.md §8 | pending |
 
 ## Commands
 | Command | What it does |
@@ -37,8 +38,8 @@ React 19.3 · TypeScript 5.9 (strict, `noUncheckedIndexedAccess`, `exactOptional
 Dev-only: fake-indexeddb 6, sql.js 1.17 (runs the Android SQL in tests).
 Android: Kotlin 2.1.21 · SQLCipher `net.zetetic:sqlcipher-android` 4.10.0 (+ androidx.sqlite 2.2.0) · androidx.biometric 1.1.0 · androidx.webkit.
 Toolchain: Node 24, JDK 21, Android SDK at `%LOCALAPPDATA%\Android\Sdk`.
-Phase 2 added: jalaali-js 1.2, i18next 25 + react-i18next 15, @capacitor/haptics 7. Phase 3 added: @tanstack/react-virtual 3. Phase 4 added: @capacitor/local-notifications 7.
-Not yet installed (added when first used): exceljs, html-to-image, chart lib, @capacitor/{app,share,filesystem,local-notifications}.
+Phase 2 added: jalaali-js 1.2, i18next 25 + react-i18next 15, @capacitor/haptics 7. Phase 3 added: @tanstack/react-virtual 3. Phase 4 added: @capacitor/local-notifications 7. Phase 5 added no dependency.
+Not yet installed (added when first used): exceljs, html-to-image, chart lib, @capacitor/{app,share,filesystem}.
 
 ## Security invariants (never regress)
 1. **CSP** in `index.html` is the PROMPT.md §1.2 policy plus tightening, plus one documented addition: `script-src 'self' 'wasm-unsafe-eval'` (required to instantiate the Argon2id WASM; it allows WebAssembly compilation only, not JS `eval`). Pinned by `tests/csp.test.ts`. No remote origin, ever.
@@ -49,6 +50,8 @@ Not yet installed (added when first used): exceljs, html-to-image, chart lib, @c
 6. **Never log** secrets: `SecureLogger` is a no-op in production and redacts in dev. R8 strips `android.util.Log` in release.
 7. **DEK handling**: Android DEK exists only in native memory (`ArizoSecurityPlugin` → `ArizoSqlCipherPlugin.takeDek()`, zeroized after keying). Web CryptoKeys are non-extractable; raw bytes are zeroized after import; the crypto worker is terminated on lock.
 8. **Record AAD**: every web ciphertext is bound to `arizo/rec/v1|<store>|<id>`, so rows cannot be swapped or moved. Tested.
+9. **SMS firewall first**: OTP/2FA and promo messages are rejected before anything else and are never written anywhere (no transaction, no inbox entry, no audit row). Native `SmsFilter` drops them before sealing; `firewall()` drops them again in JS. Pinned by `tests/sms-parser.test.ts` ("never persisted anywhere").
+10. **SMS text** never reaches a log, a notification or the URL: the capture notification is generic (`capture_text`, `VISIBILITY_PRIVATE` plus a public version), `#/sms-ingest?d=` is replaced with `#/sms` by the first import of `main.tsx` (before the router reads the URL), and queue items open only through `ArizoSecurity.openQueueItem` (refuses while locked). Nothing is ingested into a decoy session.
 
 ## Architecture (Phase 1)
 - `src/core/crypto/`: `bytes` (zeroize, b64, hex, constant-time compare, chunked CSPRNG), `primitives` (Argon2id m=64MiB t=3 p=1, AES-256-GCM seal/open with 96-bit nonce, HKDF-SHA256), `keyring` (DEK wrapped per PIN slot; main + decoy slots; all slots always derived so timing hides the decoy; HKDF sub-keys `record`/`blob`/`index`), `crypto.worker` + `cryptoClient` (transferable PIN buffers, terminate on lock).
@@ -60,6 +63,16 @@ Not yet installed (added when first used): exceljs, html-to-image, chart lib, @c
 - Android `plugins/ArizoSqlCipherPlugin.kt`: raw 32-byte key, asserts `PRAGMA cipher_version`, WAL, `secure_delete`, `foreign_keys`; single background thread; errors never echo SQL or values.
 - `src/core/data/`: `banks.json` (39 entries: 29 Iranian banks/institutions + 3 neo-banks + 7 international; all `verified: false`, senders and Android packages empty for the user to confirm), `seedCategories` (stable ids `cat_*`, idempotent).
 - Validators: Luhn, Sheba mod-97, national ID (personal + legal), economic code, Sayad (shape only: no public checksum), mobile. `numToPersianWords` up to quadrillions.
+
+## SMS engine (Phase 5)
+- `src/core/sms/normalize.ts`: `normalizeSms` (Persian/Arabic digits to ASCII, ي/ى/ك, strips ZWNJ/ZWJ/RLM/LRM/bidi/tatweel, `2,000,000-` becomes `-2,000,000` without touching dates or times) and `firewall` (OTP + spam keywords, runs first).
+- `src/core/data/sms-templates.json`: data-driven labels (amount/balance/ref/card/merchant), direction and channel words, 39 bank templates (detected by name keywords; Iranian banks default to Rial, international banks to their currency and date order), Persian/English merchant to `cat_*` map. No sender numbers.
+- `src/core/sms/parser.ts`: `parseSms` = firewall, normalize, enabled custom rules (priority order; `field_map_json` = capture group per field; `unit_hint`, `type_hint`), then template + label-driven extraction, then a heuristic fallback (largest grouped number). Dates (Jalali `1403/08/15`, `03/08/22`, Gregorian `mdy`/`dmy`, `20-Nov-2026`, `Nov 20, 2026`) and times are blanked before amounts are looked for; masked or 16-digit cards and ungrouped runs of 10+ digits (accounts, reference ids) are never amounts. An explicit `ریال`/`تومان`/`$`/`€`/`£`/`AED` wins over the bank default (Toman x 10 = Rial). Confidence 0–1; `LOW_CONFIDENCE` 0.6. `smsFingerprint` = SHA-256 of the normalized body. `splitBulk` for paste.
+- `src/core/sms/ingest.ts`: `ingestMany` (one atomic tx per message): fingerprint already stored = `duplicate`; unparsed or no matching account = inbox (`settings.sms_inbox`, max 100); account match = card suffix, else the only account of that bank, else the only bank-type account in that currency; SMS + push pair = same account and amount within 2 min with equal (or one missing) balances = `duplicate`; otherwise a `pending_review` tx with its category from `merchant_category_memory`, then the bundled map. `approvePending` posts and learns the merchant. `confirmSender` stores a user-confirmed sender-to-bank pair in `settings.sms_senders`. `balanceDrift` compares the latest reported balance with the running ledger balance at that point (a later adjustment clears it); the UI fixes drift through `reconcileBalance`. Teach: `numberTokens` + `buildTaughtRegex` (anchors on the two words before each tapped number, digits generalized). `saveRule`/`deleteRule` write `sms_parser_rules` plus an `sms_rule_changed` audit row (no content). `reprocessInbox` re-runs the inbox after any rule, sender or account change.
+- `src/core/sms/sms.worker.ts` + `smsClient.ts` (`workerParser`): parsing runs off the UI thread; the worker is terminated on lock.
+- `src/features/sms-intelligence/`: `intake.ts` (drains the Android sealed queue after unlock; `captureIngestFragment` runs from `src/app/bootFragment.ts`; `flushHeldFragment` after a main-vault unlock), `SmsCenter.tsx` (`#/sms`, `#/sms/paste`: Review Queue with account/category edit, flip and approve-all; Paste & Parse with a summary; Inbox with Teach and sender confirmation; drift badge with 1-tap Adjust), `Teach.tsx` (tap-to-regex with live preview; Regex Studio editor with a match count against inbox samples), `Wizards.tsx` (Android capture switches, 2-step Restricted Settings guide with Open App Info, bank-app picker, 30/90/365-day history scan; illustrated 4-step iOS Shortcuts guide with the copyable `#/sms-ingest?d=` URL).
+- Dock "Paste SMS" opens `#/sms/paste`; the More "SMS Center" tile is live; the dashboard pending badge opens `#/sms`.
+- Android `plugins/ArizoSmsPlugin.kt`: `BankSmsReceiver` (manifest component **disabled** until `setSmsEnabled(true)`; multipart PDUs joined per sender), `BankNotificationListener` (only `SmsPrefs.packages`), `SmsFilter` (native OTP/spam/bank-keyword gate), `SmsQueue` (sealed JSON files in `noBackupFilesDir/sms_queue`, max 2000, ids validated on delete, cleared by `destroyVault`), `CaptureNotifier` (generic, private). Methods: `status`, `setSmsEnabled` (requests RECEIVE_SMS/READ_SMS only then), `setNotificationsEnabled`, `openNotificationAccess`, `openAppInfo`, `listApps` (launcher `<queries>`, no QUERY_ALL_PACKAGES), `pending`, `ack`, `scanInbox` (background thread, at most 5000 messages). Switches live in SharedPreferences (not sensitive) because the receiver runs while the app is killed.
 
 ## Obligations (Phase 4)
 - `src/core/obligations/`: `loans` (exact bigint annuity `P·a·(b+a)^n / (b·((b+a)^n−b^n))`, b = 120 000; 0% splits exactly with the remainder on the last rows; optional bank-printed installment override; Jalali/Gregorian monthly due dates clamped; pay/unpay idempotent via `postLinkedTransaction`; `refreshOverdue`; auto `paid_off`), `cheques` (Sayad 16-digit check, duplicate Sayad refused per direction, guarded status machine, clear → one linked tx, bounce/cancel/transfer after clear voids it, exposure KPI), `debts` (people with normalized mobile, lent/borrowed, optional opening posting, partial settlements capped at what is left, undo, per-person net per currency), `upcoming` (unified 14-day feed, overdue first), `reminders` (pure planner: 09:00 local on each lead day, stable 31-bit FNV ids, generic text unless `detailedNotifications`), `scheduler` (Android LocalNotifications; cancels the previous set first), `sync` (refresh overdue + replan; runs after unlock and after every `mutateObligation`; never in a decoy session).
@@ -105,9 +118,15 @@ Not yet installed (added when first used): exceljs, html-to-image, chart lib, @c
 - **Sayad ID**: shape-only validation; the Central Bank publishes no checksum.
 - **Bank SMS senders / Android packages**: left empty, never guessed (PROMPT.md §1.4).
 - **Icons**: PWA icons generated; Android launcher icons still Capacitor defaults (Phase 9).
+- **SMS bank detection by name keywords, never by sender**: banks.json senders and packages stay empty. A sender the user confirms in the Inbox is stored in the vault (`settings.sms_senders`) and used from then on.
+- **SMS inbox and sender map live in `settings` rows** (encrypted like every record) instead of new stores, so no schema or migration change was needed.
+- **Every captured SMS is `pending_review`**: nothing auto-posts, even at confidence 1. Approving teaches merchant to category.
+- **Taught rules are plain `sms_parser_rules`** (`is_custom`, `verified: true`), tried before templates; a rule bound to a sender only matches that sender.
+- **Android SMS switches in SharedPreferences**: they are booleans and package names, not financial data, and the receiver needs them without the DEK.
+- **Restricted Settings detection** = Android 13+ and the installer is not a store. Shown as a 2-step guide; it cannot be bypassed in code.
 
 ## Not yet verified on a real device
-FLAG_SECURE, WebView firewall, BiometricPrompt + Keystore invalidation, SQLCipher open/`cipher_version`, sensitive clipboard. All compile in debug and R8 release builds; none has been run on a phone.
+FLAG_SECURE, WebView firewall, BiometricPrompt + Keystore invalidation, SQLCipher open/`cipher_version`, sensitive clipboard, and all Phase 5 native code: SMS_RECEIVED receiver, notification listener, Restricted Settings flow, sealed queue round trip, history scan, capture notification. All compile in debug and R8 release builds; none has been run on a phone. The iOS Shortcuts hand-off is tested in Playwright (fragment wipe + ingest), not on a real iPhone.
 
 ## Layout
-`src/app` (App, router, BootScreen placeholder, UpdatePrompt) · `src/core/{crypto,storage,ledger,security,bridge,data,currency,validators,utils,theme}` · `tests/` (Vitest; `helpers/vaults.ts` builds both adapters) · `tests/e2e/` · `android/` · `docs/` · `scripts/`.
+`src/app` (App, router, BootScreen placeholder, UpdatePrompt, bootFragment) · `src/core/{crypto,storage,ledger,obligations,sms,security,bridge,data,currency,validators,utils,theme}` · `src/features/sms-intelligence` · `tests/` (Vitest; `helpers/vaults.ts` builds both adapters; `sms-fixtures/vectors.ts` holds the 89 synthetic SMS vectors) · `tests/e2e/` · `android/` · `docs/` · `scripts/`.

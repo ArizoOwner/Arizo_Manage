@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="capture_channel">تراکنش‌های ثبت‌شده</string>
+    <string name="capture_title">آریزو</string>
+    <string name="capture_text">تراکنش جدید ثبت شد؛ برای بازبینی قفل را باز کنید</string>
+</resources>

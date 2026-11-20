@@ -1,6 +1,7 @@
 // Single entry point for creating, unlocking and locking the vault on both platforms.
 // Android: PIN → Argon2id KEK (JS worker) → native unwraps the DEK → SQLCipher opens. JS never holds the DEK.
 // iOS/web: PIN → keyring in the crypto worker → non-extractable CryptoKeys → encrypted Dexie.
+import { terminateSmsWorker } from '../sms/smsClient';
 import { fromB64, randomBytes, toB64, zeroize } from '../crypto/bytes';
 import { cryptoClient } from '../crypto/cryptoClient';
 import type { Keyring, SlotKind } from '../crypto/keyring';
@@ -213,6 +214,7 @@ export const vaultService = {
     await open?.db.close();
     if (isNative()) await ArizoSecurity.lock();
     cryptoClient.terminate();
+    terminateSmsWorker();
   },
 
   /** PIN change for the main vault. Resolves false on a wrong old PIN. A passkey slot stays valid (same DEK). */

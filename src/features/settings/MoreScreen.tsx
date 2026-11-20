@@ -8,10 +8,11 @@ const LIVE = [
   { to: '/cheques', key: 'more.cheques' },
   { to: '/loans', key: 'more.loans' },
   { to: '/debts', key: 'more.debts' },
+  { to: '/sms', key: 'more.sms' },
   { to: '/trash', key: 'more.trash' },
   { to: '/settings', key: 'more.settings' },
 ] as const;
-const LATER = ['more.sms', 'more.invoices', 'more.backup'] as const;
+const LATER = ['more.invoices', 'more.backup'] as const;
 
 export function MoreScreen() {
   const { t } = useTranslation();

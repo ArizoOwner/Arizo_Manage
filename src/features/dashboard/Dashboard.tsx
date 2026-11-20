@@ -83,7 +83,7 @@ export function Dashboard() {
       }
     >
       {view && view.pending > 0 && (
-        <button type="button" onClick={() => nav('/ledger')} className="min-h-11 self-start rounded-full bg-surface-2 px-4 text-[13px] font-semibold text-amber-text">
+        <button type="button" onClick={() => nav('/sms')} data-testid="pending-badge" className="min-h-11 self-start rounded-full bg-surface-2 px-4 text-[13px] font-semibold text-amber-text">
           {t('dash.pendingReview', { n: view.pending })}
         </button>
       )}

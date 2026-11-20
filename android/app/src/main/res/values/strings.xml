@@ -4,4 +4,8 @@
     <string name="title_activity_main">Arizo Manage</string>
     <string name="package_name">com.arizo.manage</string>
     <string name="custom_url_scheme">com.arizo.manage</string>
+    <!-- Generic on purpose: no amounts or bank names on the lock screen (PROMPT.md 1.2). -->
+    <string name="capture_channel">Captured transactions</string>
+    <string name="capture_title">Arizo</string>
+    <string name="capture_text">New transaction captured - unlock to review</string>
 </resources>

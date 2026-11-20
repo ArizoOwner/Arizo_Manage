@@ -10,6 +10,7 @@ import android.webkit.WebView
 import androidx.core.view.WindowCompat
 import com.arizo.manage.plugins.ArizoSecurityPlugin
 import com.arizo.manage.plugins.ArizoSqlCipherPlugin
+import com.arizo.manage.plugins.ArizoSmsPlugin
 import com.getcapacitor.Bridge
 import com.getcapacitor.BridgeActivity
 import com.getcapacitor.BridgeWebViewClient
@@ -26,6 +27,7 @@ class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(ArizoSecurityPlugin::class.java)
         registerPlugin(ArizoSqlCipherPlugin::class.java)
+        registerPlugin(ArizoSmsPlugin::class.java)
         super.onCreate(savedInstanceState)
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         WindowCompat.setDecorFitsSystemWindows(window, false)

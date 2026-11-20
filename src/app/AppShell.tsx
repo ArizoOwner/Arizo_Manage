@@ -24,7 +24,8 @@ export function AppShell() {
   const quick = (a: QuickAction) => {
     if (a === 'expense' || a === 'income' || a === 'transfer') setEntry(a);
     else if (a === 'cheque') nav('/cheques');
-    // invoice / pasteSms belong to Phases 7 and 5; the menu lists them for discovery only.
+    else if (a === 'pasteSms') nav('/sms/paste');
+    // invoice belongs to Phase 7; the menu lists it for discovery only.
   };
 
   return (
